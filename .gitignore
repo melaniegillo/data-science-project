@@ -46,11 +46,6 @@ venv.bak/
 .ipynb_checkpoints
 *.ipynb_checkpoints/
 
-# Data (uncomment if needed)
-# data/
-# *.csv
-# *.parquet
-
 # Testing
 .pytest_cache/
 .coverage
@@ -64,3 +59,8 @@ htmlcov/
 dmypy.json
 .pyre/
 .pytype/
+
+# Project specific - results and intermediate outputs
+results/
+src/CSV_*
+src/BTC_Kupiec_*.csv
