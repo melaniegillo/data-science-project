@@ -62,10 +62,52 @@ This document tracks all AI-generated or AI-assisted code in this project, as re
 
 ---
 
+## Phase 3: Model Refactoring and Critical VIX Bug Fix (Date: 2025-11-27)
+
+### Component: src/models_vix_regression.py (CRITICAL FIX)
+- **AI Tool:** Claude Code
+- **Prompt:** "Refactor VIX regression model to function-based approach AND fix the critical lagging bug on line 48"
+- **Generated Code:** Complete refactored models_vix_regression.py (~165 lines)
+- **Critical Fix:** Line 111 changed from `x[i]` to `x[i-1]` for true forecasting
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I FULLY understand:
+  - **THE BUG:** Original code used `sigma_ann = intercept + slope * x[i]` (contemporaneous VIX)
+  - **THE FIX:** New code uses `sigma_ann = intercept + slope * x[i-1]` (lagged VIX)
+  - **WHY IT MATTERS:** Using x[i] is look-ahead bias - using future information to forecast the present
+  - **CORRECT APPROACH:** At time i, we only have data up to time i-1, so must use VIX(i-1) to forecast
+  - This makes the VIX model a TRUE forecasting model, comparable to Historical and Monte Carlo
+  - Added extensive comments (lines 104-111) explaining the fix
+
+### Component: src/models_historical.py (Refactored)
+- **AI Tool:** Claude Code
+- **Prompt:** "Refactor historical VaR model to function-based approach with docstrings and config usage"
+- **Generated Code:** Complete refactored models_historical.py (~140 lines)
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I understand:
+  - Empirical quantile approach (non-parametric)
+  - Rolling window methodology
+  - Why VaR is negative of quantile (losses are negative returns)
+
+### Component: src/models_monte_carlo.py (Refactored)
+- **AI Tool:** Claude Code
+- **Prompt:** "Refactor Monte Carlo VaR model to function-based approach with docstrings and config usage"
+- **Generated Code:** Complete refactored models_monte_carlo.py (~147 lines)
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I understand:
+  - Parametric simulation assuming normal distribution
+  - Uses config.RANDOM_SEED for reproducibility
+  - Handles edge case of zero volatility
+  - 100,000 simulations per forecast
+
+### Key Takeaway from Phase 3
+**THE MOST IMPORTANT FIX:** The VIX model now uses lagged VIX for true forecasting. This was the critical methodological flaw in the original implementation. Without this fix, the results would have been meaningless due to look-ahead bias.
+
+---
+
 ## Summary (To be updated as project progresses)
 
-- **Total Components:** 5
-- **Lines Generated:** ~350
-- **Lines Modified:** ~10
-- **AI Assistance Percentage:** ~97%
-- **Understanding Level:** Complete understanding of all generated code
+- **Total Components:** 8
+- **Lines Generated:** ~800
+- **Lines Modified:** ~15
+- **AI Assistance Percentage:** ~98%
+- **Understanding Level:** Complete understanding of all generated code, especially the critical VIX lag fix

@@ -1,155 +1,165 @@
-import os
+"""
+VIX-Regression Value-at-Risk model.
+
+This model predicts Bitcoin volatility using the VIX (CBOE Volatility Index)
+and converts it to Value-at-Risk forecasts.
+
+CRITICAL FIX: This implementation uses LAGGED VIX (t-1) to forecast volatility at time t,
+ensuring we have no look-ahead bias and create true out-of-sample forecasts.
+"""
+
 import math
 import numpy as np
 import pandas as pd
-from RollingWindows import rolling_windows
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
-
-returns_file = os.path.join(base_dir, "CSV_BTCVIX", "BTC_VIX_returns.csv")
-vix_var_base = os.path.join(base_dir, "CSV_BTC_VIXRegressionEvaluation")
-
-confidence_levels = [0.95, 0.99]
-
-z_scores = {
-    0.95: 1.6448536269514722,
-    0.99: 2.3263478740408408,
-}
+from src import config
 
 
-def chi2_df1_p_value(LR_uc: float) -> float:
-    if not math.isfinite(LR_uc) or LR_uc < 0:
-        return 0.0
-    cdf = math.erf(math.sqrt(LR_uc / 2.0))
-    return 1.0 - cdf
+def calculate_vix_regression_var(data, rolling_windows=None, confidence_levels=None):
+    """
+    Calculate Value-at-Risk using VIX regression model with LAGGED VIX for forecasting.
+
+    This function:
+    1. Uses a rolling window to estimate the relationship between VIX and realized volatility
+    2. CRITICAL: Uses VIX from time (i-1) to forecast volatility at time i (avoiding look-ahead bias)
+    3. Converts predicted volatility to VaR using normal distribution quantiles
+
+    Args:
+        data (pd.DataFrame): DataFrame with columns ['Returns', 'RealizedVol_21d', 'VIX_decimal']
+                             Index should be Date
+        rolling_windows (dict, optional): Dict mapping window labels to sizes.
+                                          Defaults to config.ROLLING_WINDOWS
+        confidence_levels (list, optional): List of confidence levels. Defaults to config.CONFIDENCE_LEVELS
+
+    Returns:
+        dict: Dictionary mapping window labels to DataFrames with VaR forecasts
+
+    Raises:
+        ValueError: If required columns are missing from data
+    """
+    if rolling_windows is None:
+        rolling_windows = config.ROLLING_WINDOWS
+    if confidence_levels is None:
+        confidence_levels = config.CONFIDENCE_LEVELS
+
+    # Validate required columns
+    required_cols = ["RealizedVol_21d", "VIX_decimal"]
+    missing = [col for col in required_cols if col not in data.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    results = {}
+
+    for window_label, window_size in rolling_windows.items():
+        print(f"\n  Computing VIX regression VaR for {window_label} window (size={window_size})...")
+
+        var_df = _compute_var_for_window(data, window_size, confidence_levels)
+
+        results[window_label] = var_df
+        print(f"  ✓ Generated {len(var_df)} VaR forecasts for {window_label}")
+
+    return results
 
 
-def compute_vix_regression_var(df: pd.DataFrame, window_size: int) -> pd.DataFrame:
-    df = df.dropna(subset=["RealizedVol_21d", "VIX_decimal"]).copy()
-    df = df.sort_index()
+def _compute_var_for_window(df, window_size, confidence_levels):
+    """
+    Compute VaR forecasts for a single rolling window size.
 
-    x = df["VIX_decimal"].values
-    y = df["RealizedVol_21d"].values
-    dates = df.index
+    CRITICAL IMPLEMENTATION NOTE:
+    At time i, we fit regression on window [i-window_size:i] to learn the VIX-volatility relationship.
+    Then we use VIX from time (i-1) to predict volatility for time i.
+    This ensures we only use information available at time i-1 to forecast time i.
+
+    Args:
+        df: DataFrame with realized vol and VIX
+        window_size: Size of rolling window for regression
+        confidence_levels: List of confidence levels for VaR
+
+    Returns:
+        pd.DataFrame: VaR forecasts with columns VaR_95, VaR_99, etc.
+    """
+    # Clean data
+    df_clean = df.dropna(subset=["RealizedVol_21d", "VIX_decimal"]).copy()
+    df_clean = df_clean.sort_index()
+
+    x = df_clean["VIX_decimal"].values  # VIX values
+    y = df_clean["RealizedVol_21d"].values  # Realized volatility
+    dates = df_clean.index
 
     start = window_size
     out_dates = []
-    var_95 = []
-    var_99 = []
+    var_results = {f"VaR_{int(cl*100)}": [] for cl in confidence_levels}
 
-    for i in range(start, len(df)):
+    for i in range(start, len(df_clean)):
+        # Training window: [i - window_size : i]
         x_win = x[i - window_size : i]
         y_win = y[i - window_size : i]
 
+        # Skip if missing data in window
         if np.isnan(x_win).any() or np.isnan(y_win).any():
             continue
 
+        # Fit linear regression: realized_vol = intercept + slope * VIX
         slope, intercept = np.polyfit(x_win, y_win, 1)
-        sigma_ann = intercept + slope * x[i]
 
+        # CRITICAL FIX: Use VIX from time (i-1) to forecast time i
+        # OLD (WRONG): sigma_ann = intercept + slope * x[i]
+        # NEW (CORRECT): sigma_ann = intercept + slope * x[i-1]
+        #
+        # At time i, we only have information up to time i-1.
+        # Using x[i] would be look-ahead bias (using future information).
+        # Using x[i-1] makes this a TRUE forecast.
+        sigma_ann = intercept + slope * x[i - 1]  # LAGGED VIX
+
+        # Validate prediction (volatility must be positive and finite)
         if not np.isfinite(sigma_ann) or sigma_ann <= 0:
             continue
 
-        sigma_daily = sigma_ann / math.sqrt(252.0)
+        # Convert annualized volatility to daily volatility
+        sigma_daily = sigma_ann / math.sqrt(config.TRADING_DAYS_PER_YEAR)
 
+        # Calculate VaR for each confidence level
+        # VaR is the quantile of the loss distribution (positive = loss)
         out_dates.append(dates[i])
-        var_95.append(z_scores[0.95] * sigma_daily)
-        var_99.append(z_scores[0.99] * sigma_daily)
-
-    df_var = pd.DataFrame(
-        {"VaR_95": var_95, "VaR_99": var_99},
-        index=out_dates,
-    )
-    return df_var
-
-
-def kupiec_on_df(df: pd.DataFrame, confidence_level: float, window_label: str):
-    colname = f"VaR_{int(confidence_level * 100)}"
-    if colname not in df.columns:
-        return None
-
-    tmp = df.dropna(subset=["Returns", colname]).copy()
-    if tmp.empty:
-        return None
-
-    violations = (tmp["Returns"] < -tmp[colname]).astype(int)
-    x = int(violations.sum())
-    n = int(len(violations))
-    p0 = 1.0 - confidence_level
-    if n == 0:
-        return None
-
-    if x == 0 or x == n:
-        LR_uc = float("inf")
-        p_value = 0.0
-    else:
-        p_hat = x / n
-        logL0 = (n - x) * np.log(1 - p0) + x * np.log(p0)
-        logL1 = (n - x) * np.log(1 - p_hat) + x * np.log(p_hat)
-        LR_uc = -2.0 * (logL0 - logL1)
-        p_value = chi2_df1_p_value(LR_uc)
-
-    expected_violations = n * p0
-    reject_5pct = p_value < 0.05
-
-    return {
-        "Model": "VIXRegression",
-        "RollingWindow": window_label,
-        "ConfidenceLevel": confidence_level,
-        "N": n,
-        "Violations": x,
-        "ExpectedViolations": expected_violations,
-        "LR_uc": LR_uc,
-        "p_value": p_value,
-        "Reject_5pct": reject_5pct,
-    }
-
-
-def main():
-    if not os.path.exists(returns_file):
-        print(f"Returns file not found: {returns_file}")
-        return
-
-    returns_df = pd.read_csv(returns_file, parse_dates=["Date"])
-    if "Returns" not in returns_df.columns:
-        print("Column 'Returns' not found in BTC_VIX_returns.csv.")
-        return
-
-    returns_df = returns_df[
-        ["Date", "Returns", "RealizedVol_21d", "VIX_decimal"]
-    ].dropna(subset=["Returns"]).sort_values("Date")
-    returns_df = returns_df.set_index("Date")
-
-    os.makedirs(vix_var_base, exist_ok=True)
-
-    results = []
-
-    for window_label, window_size in rolling_windows.items():
-        window_dir = os.path.join(vix_var_base, window_label)
-        os.makedirs(window_dir, exist_ok=True)
-
-        print(f"Computing VIX regression VaR for window {window_label} (size {window_size})...")
-        var_df = compute_vix_regression_var(returns_df, int(window_size))
-
-        var_path = os.path.join(window_dir, "BTC_VIXRegressionVaR.csv")
-        var_df.to_csv(var_path)
-        print(f"Saved VIX regression VaR to: {var_path}")
-
-        merged = returns_df.join(var_df, how="inner")
-
         for cl in confidence_levels:
-            res = kupiec_on_df(merged, cl, window_label)
-            if res is not None:
-                results.append(res)
+            z_score = config.Z_SCORES[cl]
+            var_value = z_score * sigma_daily
+            var_results[f"VaR_{int(cl*100)}"].append(var_value)
 
-    output_file = os.path.join(base_dir, "BTC_Kupiec_Results_VIXRegression.csv")
-    results_df = pd.DataFrame(results)
-    results_df.to_csv(output_file, index=False)
-
-    print("\nKupiec test (VIX regression) finished. Results:")
-    print(results_df)
-    print(f"\nSaved to: {output_file}")
+    # Create output DataFrame
+    result_df = pd.DataFrame(var_results, index=out_dates)
+    return result_df
 
 
 if __name__ == "__main__":
-    main()
+    # Test the VIX regression model
+    from src.data_loader import prepare_btc_vix_data
+
+    print("\n" + "=" * 60)
+    print("Testing VIX Regression VaR Model")
+    print("=" * 60)
+
+    try:
+        # Load data
+        data = prepare_btc_vix_data()
+
+        # Set Date as index
+        if "Date" in data.columns:
+            data = data.set_index("Date")
+
+        # Calculate VaR
+        print("\nCalculating VIX regression VaR...")
+        results = calculate_vix_regression_var(data)
+
+        # Display results
+        for window_label, var_df in results.items():
+            print(f"\n{window_label} window:")
+            print(var_df.head())
+            print(f"Shape: {var_df.shape}")
+
+        print("\n✓ VIX regression model test completed successfully!")
+
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)

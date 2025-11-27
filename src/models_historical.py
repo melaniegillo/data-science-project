@@ -1,70 +1,138 @@
-import os
+"""
+Historical Value-at-Risk model.
+
+This model uses the empirical distribution of past returns to estimate VaR.
+It's a non-parametric approach that makes no assumptions about the distribution
+of returns.
+"""
+
 import numpy as np
 import pandas as pd
-from RollingWindows import rolling_windows
-
-base_dir = os.path.dirname(__file__)
-
-input_file = os.path.join(base_dir, "CSV_BTCVIX", "BTC_VIX_returns.csv")
-
-base_output_folder = os.path.join(base_dir, "CSV_BTC_HistoricalEvaluation")
-if not os.path.exists(base_output_folder):
-    os.makedirs(base_output_folder)
-
-confidence_levels = [0.95, 0.99]
+from src import config
 
 
-def calculate_var(returns_window, confidence_level):
+def calculate_historical_var(data, rolling_windows=None, confidence_levels=None):
     """
-    Historical VaR for one confidence level.
-    VaR is returned as a positive loss: -quantile of past returns.
+    Calculate Value-at-Risk using historical simulation (empirical quantiles).
+
+    This function uses a rolling window approach where VaR at time t is calculated
+    using the empirical quantile of returns from [t-window_size, ..., t-1].
+
+    Args:
+        data (pd.DataFrame): DataFrame with 'Returns' column and Date index
+        rolling_windows (dict, optional): Dict mapping window labels to sizes.
+                                          Defaults to config.ROLLING_WINDOWS
+        confidence_levels (list, optional): List of confidence levels. Defaults to config.CONFIDENCE_LEVELS
+
+    Returns:
+        dict: Dictionary mapping window labels to DataFrames with VaR forecasts
+
+    Raises:
+        ValueError: If 'Returns' column is missing from data
     """
-    q = np.quantile(returns_window, 1 - confidence_level)
-    return -q
+    if rolling_windows is None:
+        rolling_windows = config.ROLLING_WINDOWS
+    if confidence_levels is None:
+        confidence_levels = config.CONFIDENCE_LEVELS
+
+    # Validate required columns
+    if "Returns" not in data.columns:
+        raise ValueError("Data must have 'Returns' column")
+
+    results = {}
+
+    for window_label, window_size in rolling_windows.items():
+        print(f"\n  Computing Historical VaR for {window_label} window (size={window_size})...")
+
+        var_df = _compute_var_for_window(data, window_size, confidence_levels)
+
+        results[window_label] = var_df
+        print(f"  ✓ Generated {len(var_df)} VaR forecasts for {window_label}")
+
+    return results
 
 
-def compute_historical_var_for_window(data, window_size):
+def _compute_var_for_window(data, window_size, confidence_levels):
     """
-    Out-of-sample Historical VaR for a given rolling window size.
-    VaR at time t uses returns from [t-window_size, ..., t-1].
+    Compute Historical VaR for a single rolling window size.
+
+    Args:
+        data: DataFrame with Returns column
+        window_size: Size of rolling window
+        confidence_levels: List of confidence levels
+
+    Returns:
+        pd.DataFrame: VaR forecasts with columns VaR_95, VaR_99, etc.
     """
-    df = data.copy().reset_index(drop=True)
+    df = data.copy()
 
-    for cl in confidence_levels:
-        df[f"VaR_{int(cl * 100)}"] = np.nan
+    # Reset index to use integer indexing
+    if df.index.name == "Date" or "Date" in df.columns:
+        dates = df.index if df.index.name == "Date" else df["Date"]
+    else:
+        dates = df.index
 
+    df = df.reset_index(drop=True)
+
+    # Initialize VaR columns
+    var_results = {f"VaR_{int(cl*100)}": [] for cl in confidence_levels}
+    out_dates = []
+
+    # Calculate VaR for each time point
     for i in range(window_size, len(df)):
-        window_returns = df.loc[i - window_size:i - 1, "Returns"]
+        # Get returns window: [i-window_size : i-1]
+        # This uses only past data to forecast time i
+        returns_window = df.loc[i - window_size : i - 1, "Returns"]
 
+        # Skip if window has NaN values
+        if returns_window.isna().any():
+            continue
+
+        out_dates.append(dates[i])
+
+        # Calculate VaR for each confidence level
         for cl in confidence_levels:
-            colname = f"VaR_{int(cl * 100)}"
-            df.at[i, colname] = calculate_var(window_returns, cl)
+            # VaR is the negative of the quantile (we report losses as positive)
+            # For 95% confidence, we take the 5th percentile of returns (losses)
+            q = np.quantile(returns_window, 1 - cl)
+            var_value = -q  # Negative because losses are negative returns
+            var_results[f"VaR_{int(cl*100)}"].append(var_value)
 
-    return df
+    # Create output DataFrame
+    result_df = pd.DataFrame(var_results, index=out_dates)
+    return result_df
 
 
+if __name__ == "__main__":
+    # Test the Historical VaR model
+    from src.data_loader import prepare_btc_vix_data
 
-data = pd.read_csv(input_file, parse_dates=["Date"])
-data = data.sort_values("Date").reset_index(drop=True)
+    print("\n" + "=" * 60)
+    print("Testing Historical VaR Model")
+    print("=" * 60)
 
-for window_label, window_size in rolling_windows.items():
-    print(f"Computing Historical VaR for window {window_label} ({window_size} days)...")
+    try:
+        # Load data
+        data = prepare_btc_vix_data()
 
-    df_var = compute_historical_var_for_window(data, window_size)
+        # Set Date as index
+        if "Date" in data.columns:
+            data = data.set_index("Date")
 
-    cols_to_save = ["Date", "Returns", "vix_level"]
-    for cl in confidence_levels:
-        cols_to_save.append(f"VaR_{int(cl * 100)}")
+        # Calculate VaR
+        print("\nCalculating Historical VaR...")
+        results = calculate_historical_var(data)
 
-    df_out = df_var[cols_to_save]
+        # Display results
+        for window_label, var_df in results.items():
+            print(f"\n{window_label} window:")
+            print(var_df.head())
+            print(f"Shape: {var_df.shape}")
 
-    rolling_output_folder = os.path.join(base_output_folder, window_label)
-    if not os.path.exists(rolling_output_folder):
-        os.makedirs(rolling_output_folder)
+        print("\n✓ Historical VaR model test completed successfully!")
 
-    output_file = os.path.join(rolling_output_folder, "BTC_HistVaR.csv")
-    df_out.to_csv(output_file, index=False)
-
-    print(f"  -> Saved to {output_file}")
-
-print("Historical VaR calculation for BTC completed.")
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
