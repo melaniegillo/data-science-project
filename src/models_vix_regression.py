@@ -87,7 +87,7 @@ def _compute_var_for_window(df, window_size, confidence_levels):
 
     start = window_size
     out_dates = []
-    var_results = {f"VaR_{int(cl*100)}": [] for cl in confidence_levels}
+    var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
 
     for i in range(start, len(df_clean)):
         # Training window: [i - window_size : i]
@@ -119,7 +119,7 @@ def _compute_var_for_window(df, window_size, confidence_levels):
         for cl in confidence_levels:
             z_score = config.Z_SCORES[cl]
             var_value = z_score * sigma_daily
-            var_results[f"VaR_{int(cl*100)}"].append(var_value)
+            var_results[f"VaR_{int(cl * 100)}"].append(var_value)
 
     # Create output DataFrame
     result_df = pd.DataFrame(var_results, index=out_dates)
@@ -157,5 +157,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)

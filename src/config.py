@@ -21,10 +21,10 @@ VIX_PROCESSED_FILE = PROCESSED_DATA_DIR / "dataprocessedvix_daily.xlsx"
 
 # Rolling window configurations (in trading days)
 ROLLING_WINDOWS = {
-    '1m': 21,    # 1 month
-    '3m': 63,    # 3 months
-    '6m': 126,   # 6 months
-    '12m': 252,  # 12 months (1 year)
+    "1m": 21,  # 1 month
+    "3m": 63,  # 3 months
+    "6m": 126,  # 6 months
+    "12m": 252,  # 12 months (1 year)
 }
 
 # Confidence levels for VaR calculations

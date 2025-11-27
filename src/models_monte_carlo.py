@@ -78,7 +78,7 @@ def _compute_var_for_window(returns_series, window_size, confidence_levels):
 
     start = window_size
     out_dates = []
-    var_results = {f"VaR_{int(cl*100)}": [] for cl in confidence_levels}
+    var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
 
     for i in range(start, len(values)):
         # Get returns window: [i-window_size : i-1]
@@ -104,7 +104,7 @@ def _compute_var_for_window(returns_series, window_size, confidence_levels):
             # For 95% confidence, we want the 5th percentile (worst 5% of outcomes)
             q = np.quantile(sims, 1 - cl)
             var_value = -q  # Negative because losses are negative returns
-            var_results[f"VaR_{int(cl*100)}"].append(var_value)
+            var_results[f"VaR_{int(cl * 100)}"].append(var_value)
 
     # Create output DataFrame
     result_df = pd.DataFrame(var_results, index=out_dates)
@@ -142,5 +142,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)

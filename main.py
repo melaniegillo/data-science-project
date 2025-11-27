@@ -20,7 +20,7 @@ from src.evaluation_summary import (
     compare_models,
     rank_models_by_coverage,
     save_all_results,
-    print_summary
+    print_summary,
 )
 
 
@@ -75,14 +75,10 @@ def main():
         print("=" * 80)
 
         print("\n[1/3] Testing Historical VaR model...")
-        historical_kupiec = run_kupiec_tests_for_model(
-            data, historical_results, "Historical"
-        )
+        historical_kupiec = run_kupiec_tests_for_model(data, historical_results, "Historical")
 
         print("\n[2/3] Testing Monte Carlo VaR model...")
-        montecarlo_kupiec = run_kupiec_tests_for_model(
-            data, montecarlo_results, "MonteCarlo"
-        )
+        montecarlo_kupiec = run_kupiec_tests_for_model(data, montecarlo_results, "MonteCarlo")
 
         print("\n[3/3] Testing VIX-Regression VaR model...")
         vix_regression_kupiec = run_kupiec_tests_for_model(
@@ -97,11 +93,9 @@ def main():
         print("=" * 80)
 
         # Combine all Kupiec results
-        all_kupiec = combine_kupiec_results([
-            historical_kupiec,
-            montecarlo_kupiec,
-            vix_regression_kupiec
-        ])
+        all_kupiec = combine_kupiec_results(
+            [historical_kupiec, montecarlo_kupiec, vix_regression_kupiec]
+        )
 
         # Generate comparison statistics
         comparison_stats = compare_models(all_kupiec)
@@ -133,6 +127,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

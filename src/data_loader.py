@@ -14,6 +14,7 @@ from src import config
 
 class DataLoadError(Exception):
     """Custom exception for data loading errors."""
+
     pass
 
 
@@ -137,8 +138,8 @@ def prepare_btc_vix_data():
 
         # Calculate realized volatility (21-day rolling)
         window = config.REALIZED_VOL_WINDOW
-        data["RealizedVol_21d"] = (
-            data["Returns"].rolling(window).std() * np.sqrt(config.TRADING_DAYS_PER_YEAR)
+        data["RealizedVol_21d"] = data["Returns"].rolling(window).std() * np.sqrt(
+            config.TRADING_DAYS_PER_YEAR
         )
         print(f"✓ Realized volatility ({window}-day window)")
 

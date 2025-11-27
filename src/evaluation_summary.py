@@ -66,7 +66,7 @@ def compare_models(kupiec_results):
         "Deviation_pct",
         "AbsDeviation",
         "p_value",
-        "Reject_5pct"
+        "Reject_5pct",
     ]
 
     comparison = results[comparison_cols].copy()
@@ -91,15 +91,19 @@ def rank_models_by_coverage(comparison_df):
         sorted_group = group.sort_values("AbsDeviation").copy()
         sorted_group["Rank"] = range(1, len(sorted_group) + 1)
 
-        rankings.append(sorted_group[[
-            "Model",
-            "RollingWindow",
-            "ConfidenceLevel",
-            "Violations",
-            "ExpectedViolations",
-            "AbsDeviation",
-            "Rank"
-        ]])
+        rankings.append(
+            sorted_group[
+                [
+                    "Model",
+                    "RollingWindow",
+                    "ConfidenceLevel",
+                    "Violations",
+                    "ExpectedViolations",
+                    "AbsDeviation",
+                    "Rank",
+                ]
+            ]
+        )
 
     return pd.concat(rankings, ignore_index=True)
 
@@ -133,11 +137,7 @@ def save_all_results(kupiec_results, comparison_stats, rankings, output_dir=None
     print(f"✓ Saved model comparison to: {comparison_file}")
     print(f"✓ Saved model rankings to: {rankings_file}")
 
-    return {
-        "kupiec": kupiec_file,
-        "comparison": comparison_file,
-        "rankings": rankings_file
-    }
+    return {"kupiec": kupiec_file, "comparison": comparison_file, "rankings": rankings_file}
 
 
 def print_summary(comparison_stats, rankings):
@@ -154,20 +154,21 @@ def print_summary(comparison_stats, rankings):
 
     print("\n1. Overall Violation Rates by Model:")
     print("-" * 80)
-    summary = comparison_stats.groupby("Model").agg({
-        "Violations": "sum",
-        "ExpectedViolations": "sum",
-        "AbsDeviation": "mean"
-    }).round(2)
-    summary["Total_ViolationRate"] = (summary["Violations"] /
-                                       comparison_stats.groupby("Model")["N"].sum())
+    summary = (
+        comparison_stats.groupby("Model")
+        .agg({"Violations": "sum", "ExpectedViolations": "sum", "AbsDeviation": "mean"})
+        .round(2)
+    )
+    summary["Total_ViolationRate"] = (
+        summary["Violations"] / comparison_stats.groupby("Model")["N"].sum()
+    )
     print(summary)
 
     print("\n2. Best Model by Window and Confidence Level (Rank 1 = Best):")
     print("-" * 80)
-    best_models = rankings[rankings["Rank"] == 1][[
-        "RollingWindow", "ConfidenceLevel", "Model", "AbsDeviation"
-    ]].sort_values(["ConfidenceLevel", "RollingWindow"])
+    best_models = rankings[rankings["Rank"] == 1][
+        ["RollingWindow", "ConfidenceLevel", "Model", "AbsDeviation"]
+    ].sort_values(["ConfidenceLevel", "RollingWindow"])
     print(best_models.to_string(index=False))
 
     print("\n3. Average Ranking by Model (Lower is Better):")
@@ -189,17 +190,19 @@ if __name__ == "__main__":
     for model in ["Historical", "MonteCarlo", "VIXRegression"]:
         for window in ["1m", "3m", "6m", "12m"]:
             for cl in [0.95, 0.99]:
-                test_data.append({
-                    "Model": model,
-                    "RollingWindow": window,
-                    "ConfidenceLevel": cl,
-                    "N": 1000,
-                    "Violations": int(1000 * (1 - cl) * (1 + 0.1 * hash(model+window) % 3)),
-                    "ExpectedViolations": 1000 * (1 - cl),
-                    "ViolationRate": (1 - cl) * (1 + 0.1 * hash(model+window) % 3),
-                    "p_value": 0.1,
-                    "Reject_5pct": False
-                })
+                test_data.append(
+                    {
+                        "Model": model,
+                        "RollingWindow": window,
+                        "ConfidenceLevel": cl,
+                        "N": 1000,
+                        "Violations": int(1000 * (1 - cl) * (1 + 0.1 * hash(model + window) % 3)),
+                        "ExpectedViolations": 1000 * (1 - cl),
+                        "ViolationRate": (1 - cl) * (1 + 0.1 * hash(model + window) % 3),
+                        "p_value": 0.1,
+                        "Reject_5pct": False,
+                    }
+                )
 
     kupiec_df = pd.DataFrame(test_data)
 

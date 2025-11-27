@@ -12,7 +12,9 @@ import pandas as pd
 from scipy.stats import chi2
 
 
-def run_kupiec_test(returns, var_forecasts, confidence_level, model_name="Unknown", window_label=""):
+def run_kupiec_test(
+    returns, var_forecasts, confidence_level, model_name="Unknown", window_label=""
+):
     """
     Run Kupiec unconditional coverage test on VaR forecasts.
 
@@ -53,10 +55,7 @@ def run_kupiec_test(returns, var_forecasts, confidence_level, model_name="Unknow
         var_series = var_forecasts
 
     # Merge returns and VaR on index (dates)
-    df = pd.DataFrame({
-        "Returns": returns_series,
-        "VaR": var_series
-    }).dropna()
+    df = pd.DataFrame({"Returns": returns_series, "VaR": var_series}).dropna()
 
     if df.empty:
         raise ValueError("No valid data after merging returns and VaR")
@@ -64,7 +63,7 @@ def run_kupiec_test(returns, var_forecasts, confidence_level, model_name="Unknow
     # Calculate violations (return < -VaR means a loss exceeded the VaR threshold)
     violations = (df["Returns"] < -df["VaR"]).astype(int)
     x = int(violations.sum())  # Number of violations
-    n = int(len(violations))   # Total observations
+    n = int(len(violations))  # Total observations
     p0 = 1.0 - confidence_level  # Expected violation rate
 
     if n == 0:
@@ -116,6 +115,7 @@ def run_kupiec_tests_for_model(returns, var_results_dict, model_name, confidence
     """
     if confidence_levels is None:
         from src import config
+
         confidence_levels = config.CONFIDENCE_LEVELS
 
     results = []
@@ -128,7 +128,7 @@ def run_kupiec_tests_for_model(returns, var_results_dict, model_name, confidence
                     var_forecasts=var_df,
                     confidence_level=cl,
                     model_name=model_name,
-                    window_label=window_label
+                    window_label=window_label,
                 )
                 results.append(result)
             except Exception as e:

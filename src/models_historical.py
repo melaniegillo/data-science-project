@@ -75,7 +75,7 @@ def _compute_var_for_window(data, window_size, confidence_levels):
     df = df.reset_index(drop=True)
 
     # Initialize VaR columns
-    var_results = {f"VaR_{int(cl*100)}": [] for cl in confidence_levels}
+    var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
     out_dates = []
 
     # Calculate VaR for each time point
@@ -96,7 +96,7 @@ def _compute_var_for_window(data, window_size, confidence_levels):
             # For 95% confidence, we take the 5th percentile of returns (losses)
             q = np.quantile(returns_window, 1 - cl)
             var_value = -q  # Negative because losses are negative returns
-            var_results[f"VaR_{int(cl*100)}"].append(var_value)
+            var_results[f"VaR_{int(cl * 100)}"].append(var_value)
 
     # Create output DataFrame
     result_df = pd.DataFrame(var_results, index=out_dates)
@@ -134,5 +134,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)
