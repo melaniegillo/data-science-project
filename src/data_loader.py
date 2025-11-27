@@ -1,49 +1,183 @@
-import os
+"""
+Data loading and preprocessing module for Bitcoin VaR forecasting.
+
+This module handles loading Bitcoin and VIX data, merging them,
+and calculating necessary features like returns, realized volatility,
+and lagged VIX values for forecasting.
+"""
+
 import numpy as np
 import pandas as pd
+from pathlib import Path
+from src import config
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-project_dir = os.path.dirname(base_dir)
 
-processed_dir = os.path.join(project_dir, "data", "processed")
+class DataLoadError(Exception):
+    """Custom exception for data loading errors."""
+    pass
 
-btc_input_file = os.path.join(processed_dir, "dataprocessedbtc_daily.xlsx")
-vix_input_file = os.path.join(processed_dir, "dataprocessedvix_daily.xlsx")
 
-base_output_folder = os.path.join(base_dir, "CSV_BTCVIX")
-os.makedirs(base_output_folder, exist_ok=True)
+def load_btc_data():
+    """
+    Load Bitcoin price data from processed Excel file.
+
+    Returns:
+        pd.DataFrame: Bitcoin data with Date and btc_price columns
+
+    Raises:
+        DataLoadError: If file not found or required columns missing
+    """
+    try:
+        file_path = config.BTC_PROCESSED_FILE
+        if not file_path.exists():
+            raise DataLoadError(f"BTC data file not found: {file_path}")
+
+        df = pd.read_excel(file_path)
+
+        # Validate required columns
+        if "btc_price" not in df.columns:
+            raise DataLoadError("BTC data missing required column: 'btc_price'")
+        if "Date" not in df.columns:
+            raise DataLoadError("BTC data missing required column: 'Date'")
+
+        # Process dates and sort
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.sort_values("Date").reset_index(drop=True)
+
+        print(f"✓ Loaded BTC data: {len(df)} rows")
+        return df
+
+    except FileNotFoundError:
+        raise DataLoadError(f"BTC data file not found: {config.BTC_PROCESSED_FILE}")
+    except Exception as e:
+        raise DataLoadError(f"Error loading BTC data: {str(e)}")
+
+
+def load_vix_data():
+    """
+    Load VIX index data from processed Excel file.
+
+    Returns:
+        pd.DataFrame: VIX data with Date and vix_level columns
+
+    Raises:
+        DataLoadError: If file not found or required columns missing
+    """
+    try:
+        file_path = config.VIX_PROCESSED_FILE
+        if not file_path.exists():
+            raise DataLoadError(f"VIX data file not found: {file_path}")
+
+        df = pd.read_excel(file_path)
+
+        # Validate required columns
+        if "vix_level" not in df.columns:
+            raise DataLoadError("VIX data missing required column: 'vix_level'")
+        if "Date" not in df.columns:
+            raise DataLoadError("VIX data missing required column: 'Date'")
+
+        # Process dates and sort
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.sort_values("Date").reset_index(drop=True)
+
+        print(f"✓ Loaded VIX data: {len(df)} rows")
+        return df
+
+    except FileNotFoundError:
+        raise DataLoadError(f"VIX data file not found: {config.VIX_PROCESSED_FILE}")
+    except Exception as e:
+        raise DataLoadError(f"Error loading VIX data: {str(e)}")
+
 
 def prepare_btc_vix_data():
-    btc = pd.read_excel(btc_input_file)
-    vix = pd.read_excel(vix_input_file)
+    """
+    Load, merge, and prepare Bitcoin and VIX data for VaR analysis.
 
-    btc["Date"] = pd.to_datetime(btc["Date"])
-    vix["Date"] = pd.to_datetime(vix["Date"])
+    This function:
+    1. Loads BTC and VIX data
+    2. Merges on Date (inner join)
+    3. Calculates log returns
+    4. Calculates realized volatility
+    5. Creates VIX features (decimal, change, lagged)
+    6. Saves merged data to CSV
 
-    btc = btc.sort_values("Date")
-    vix = vix.sort_values("Date")
+    Returns:
+        pd.DataFrame: Merged and processed data with all features
 
-    data = pd.merge(btc, vix, on="Date", how="inner")
+    Raises:
+        DataLoadError: If data loading or processing fails
+    """
+    print("\n" + "=" * 60)
+    print("Loading and Preparing BTC + VIX Data")
+    print("=" * 60)
 
-    data = data.dropna(subset=["btc_price", "vix_level"]).copy()
+    try:
+        # Load data
+        btc = load_btc_data()
+        vix = load_vix_data()
 
-    data["Returns"] = np.log(data["btc_price"]).diff()
+        # Merge on Date
+        print("\nMerging BTC and VIX data...")
+        data = pd.merge(btc, vix, on="Date", how="inner")
+        print(f"✓ Merged data: {len(data)} rows (matched dates)")
 
-    data = data.dropna(subset=["Returns"]).copy()
+        # Drop rows with missing BTC or VIX values
+        initial_len = len(data)
+        data = data.dropna(subset=["btc_price", "vix_level"]).copy()
+        if len(data) < initial_len:
+            print(f"  Dropped {initial_len - len(data)} rows with missing values")
 
-    window = 21
-    data["RealizedVol_21d"] = data["Returns"].rolling(window).std() * np.sqrt(252)
+        # Calculate log returns
+        print("\nCalculating features...")
+        data["Returns"] = np.log(data["btc_price"]).diff()
 
-    data["VIX_decimal"] = data["vix_level"] / 100.0
+        # Drop first row with NaN return
+        data = data.dropna(subset=["Returns"]).copy()
+        print(f"✓ Returns calculated: {len(data)} rows (after dropping first)")
 
-    data["VIX_change"] = data["vix_level"].diff()
+        # Calculate realized volatility (21-day rolling)
+        window = config.REALIZED_VOL_WINDOW
+        data["RealizedVol_21d"] = (
+            data["Returns"].rolling(window).std() * np.sqrt(config.TRADING_DAYS_PER_YEAR)
+        )
+        print(f"✓ Realized volatility ({window}-day window)")
 
-    output_file = os.path.join(base_output_folder, "BTC_VIX_returns.csv")
-    data.to_csv(output_file, index=False)
+        # VIX in decimal form (e.g., 20 -> 0.20)
+        data["VIX_decimal"] = data["vix_level"] / 100.0
 
-    print(f"BTC + VIX merged data with returns saved to: {output_file}")
-    print(f"Number of observations: {len(data)}")
-    print("Columns:", list(data.columns))
+        # VIX change (for analysis)
+        data["VIX_change"] = data["vix_level"].diff()
+
+        # CRITICAL: Create lagged VIX for forecasting
+        # This is used by the VIX regression model to make true forecasts
+        lag_days = config.VIX_LAG_DAYS
+        data[f"VIX_lag{lag_days}"] = data["VIX_decimal"].shift(lag_days)
+        print(f"✓ Lagged VIX (lag={lag_days} days) for forecasting")
+
+        # Save to CSV
+        output_folder = config.SRC_DIR / "CSV_BTCVIX"
+        output_folder.mkdir(exist_ok=True)
+        output_file = output_folder / "BTC_VIX_returns.csv"
+        data.to_csv(output_file, index=False)
+
+        print(f"\n✓ Data saved to: {output_file}")
+        print(f"✓ Final dataset: {len(data)} rows")
+        print(f"✓ Columns: {list(data.columns)}")
+        print("=" * 60 + "\n")
+
+        return data
+
+    except Exception as e:
+        raise DataLoadError(f"Error preparing data: {str(e)}")
+
 
 if __name__ == "__main__":
-    prepare_btc_vix_data()
+    # Run data preparation when executed as script
+    try:
+        data = prepare_btc_vix_data()
+        print("\n✓ Data preparation completed successfully!")
+        print(f"\nData Summary:")
+        print(data.describe())
+    except DataLoadError as e:
+        print(f"\n✗ Error: {e}")
+        exit(1)

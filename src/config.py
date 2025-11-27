@@ -1,0 +1,70 @@
+"""
+Configuration module for Bitcoin VaR forecasting project.
+
+Contains all project-wide configuration including paths, rolling windows,
+confidence levels, and model parameters.
+"""
+
+from pathlib import Path
+
+# Project paths
+PROJECT_ROOT = Path(__file__).parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+RAW_DATA_DIR = DATA_DIR / "raw"
+PROCESSED_DATA_DIR = DATA_DIR / "processed"
+SRC_DIR = PROJECT_ROOT / "src"
+RESULTS_DIR = PROJECT_ROOT / "results"
+
+# Data file names
+BTC_PROCESSED_FILE = PROCESSED_DATA_DIR / "dataprocessedbtc_daily.xlsx"
+VIX_PROCESSED_FILE = PROCESSED_DATA_DIR / "dataprocessedvix_daily.xlsx"
+
+# Rolling window configurations (in trading days)
+ROLLING_WINDOWS = {
+    '1m': 21,    # 1 month
+    '3m': 63,    # 3 months
+    '6m': 126,   # 6 months
+    '12m': 252,  # 12 months (1 year)
+}
+
+# Confidence levels for VaR calculations
+CONFIDENCE_LEVELS = [0.95, 0.99]
+
+# Z-scores for normal distribution quantiles
+Z_SCORES = {
+    0.95: 1.6448536269514722,
+    0.99: 2.3263478740408408,
+}
+
+# Monte Carlo simulation parameters
+MONTE_CARLO_SIMS = 100_000
+RANDOM_SEED = 42
+
+# VIX regression parameters
+VIX_LAG_DAYS = 1  # Use VIX from t-1 to forecast time t
+
+# Volatility calculation parameters
+REALIZED_VOL_WINDOW = 21  # Days for realized volatility calculation
+TRADING_DAYS_PER_YEAR = 252
+
+
+def ensure_results_dir():
+    """Create results directory and subdirectories if they don't exist."""
+    RESULTS_DIR.mkdir(exist_ok=True)
+    (RESULTS_DIR / "kupiec_tests").mkdir(exist_ok=True)
+    (RESULTS_DIR / "comparisons").mkdir(exist_ok=True)
+    (RESULTS_DIR / "var_forecasts").mkdir(exist_ok=True)
+    (RESULTS_DIR / "figures").mkdir(exist_ok=True)
+
+
+if __name__ == "__main__":
+    # Print configuration for debugging
+    print("Bitcoin VaR Forecasting - Configuration")
+    print("=" * 50)
+    print(f"Project Root: {PROJECT_ROOT}")
+    print(f"Data Directory: {DATA_DIR}")
+    print(f"Results Directory: {RESULTS_DIR}")
+    print(f"\nRolling Windows: {ROLLING_WINDOWS}")
+    print(f"Confidence Levels: {CONFIDENCE_LEVELS}")
+    print(f"VIX Lag Days: {VIX_LAG_DAYS}")
+    print(f"Monte Carlo Simulations: {MONTE_CARLO_SIMS:,}")
