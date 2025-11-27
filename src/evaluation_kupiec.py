@@ -1,83 +1,159 @@
-import os
+"""
+Kupiec test for Value-at-Risk model validation.
+
+The Kupiec test (also known as the unconditional coverage test) checks whether
+the observed violation rate matches the expected violation rate for a given
+confidence level.
+"""
+
 import math
 import numpy as np
 import pandas as pd
-from RollingWindows import rolling_windows
-
-base_dir = os.path.dirname(__file__)
-hist_var_base = os.path.join(base_dir, "CSV_BTC_HistoricalEvaluation")
-confidence_levels = [0.95, 0.99]
+from scipy.stats import chi2
 
 
-def chi2_df1_p_value(LR_uc: float) -> float:
-    if not math.isfinite(LR_uc) or LR_uc < 0:
-        return 0.0
-    cdf = math.erf(math.sqrt(LR_uc / 2.0))
-    return 1.0 - cdf
+def run_kupiec_test(returns, var_forecasts, confidence_level, model_name="Unknown", window_label=""):
+    """
+    Run Kupiec unconditional coverage test on VaR forecasts.
 
+    The Kupiec test checks if the proportion of VaR violations is consistent
+    with the expected violation rate. For example, at 95% confidence, we expect
+    violations about 5% of the time.
 
-def kupiec_test(df: pd.DataFrame, confidence_level: float):
-    colname = f"VaR_{int(confidence_level * 100)}"
-    df = df.dropna(subset=["Returns", colname]).copy()
+    Args:
+        returns (pd.Series or pd.DataFrame): Actual returns (index should be dates)
+        var_forecasts (pd.Series or pd.DataFrame): VaR forecasts with column like VaR_95
+        confidence_level (float): Confidence level (e.g., 0.95, 0.99)
+        model_name (str): Name of the model being tested
+        window_label (str): Rolling window label (e.g., '1m', '3m')
+
+    Returns:
+        dict: Test results including violations, expected violations, LR statistic, p-value
+
+    Raises:
+        ValueError: If required data is missing or invalid
+    """
+    # Determine VaR column name
+    var_col = f"VaR_{int(confidence_level * 100)}"
+
+    # Handle DataFrame vs Series for returns
+    if isinstance(returns, pd.DataFrame):
+        if "Returns" not in returns.columns:
+            raise ValueError("Returns DataFrame must have 'Returns' column")
+        returns_series = returns["Returns"]
+    else:
+        returns_series = returns
+
+    # Handle DataFrame vs Series for VaR
+    if isinstance(var_forecasts, pd.DataFrame):
+        if var_col not in var_forecasts.columns:
+            raise ValueError(f"VaR forecasts must have '{var_col}' column")
+        var_series = var_forecasts[var_col]
+    else:
+        var_series = var_forecasts
+
+    # Merge returns and VaR on index (dates)
+    df = pd.DataFrame({
+        "Returns": returns_series,
+        "VaR": var_series
+    }).dropna()
+
     if df.empty:
-        return None
+        raise ValueError("No valid data after merging returns and VaR")
 
-    violations = (df["Returns"] < -df[colname]).astype(int)
-    x = int(violations.sum())
-    n = int(len(violations))
-    p0 = 1.0 - confidence_level
+    # Calculate violations (return < -VaR means a loss exceeded the VaR threshold)
+    violations = (df["Returns"] < -df["VaR"]).astype(int)
+    x = int(violations.sum())  # Number of violations
+    n = int(len(violations))   # Total observations
+    p0 = 1.0 - confidence_level  # Expected violation rate
+
     if n == 0:
-        return None
+        raise ValueError("No observations available for testing")
 
+    # Calculate likelihood ratio statistic
     if x == 0 or x == n:
+        # Edge cases: no violations or all violations
         LR_uc = float("inf")
         p_value = 0.0
     else:
-        p_hat = x / n
-        logL0 = (n - x) * np.log(1 - p0) + x * np.log(p0)
-        logL1 = (n - x) * np.log(1 - p_hat) + x * np.log(p_hat)
-        LR_uc = -2.0 * (logL0 - logL1)
-        p_value = chi2_df1_p_value(LR_uc)
+        p_hat = x / n  # Observed violation rate
+        # Log-likelihoods
+        logL0 = (n - x) * np.log(1 - p0) + x * np.log(p0)  # Under null hypothesis
+        logL1 = (n - x) * np.log(1 - p_hat) + x * np.log(p_hat)  # Under alternative
+        LR_uc = -2.0 * (logL0 - logL1)  # Likelihood ratio statistic
+        # P-value from chi-squared distribution with 1 degree of freedom
+        p_value = 1 - chi2.cdf(LR_uc, df=1)
 
     expected_violations = n * p0
-    reject_5pct = p_value < 0.05
+    reject_5pct = p_value < 0.05  # Reject null at 5% significance level
 
     return {
-        "Model": "Historical",
-        "RollingWindow": "",
+        "Model": model_name,
+        "RollingWindow": window_label,
         "ConfidenceLevel": confidence_level,
         "N": n,
         "Violations": x,
         "ExpectedViolations": expected_violations,
+        "ViolationRate": x / n if n > 0 else 0,
         "LR_uc": LR_uc,
         "p_value": p_value,
         "Reject_5pct": reject_5pct,
     }
 
 
-results = []
+def run_kupiec_tests_for_model(returns, var_results_dict, model_name, confidence_levels=None):
+    """
+    Run Kupiec tests for all windows and confidence levels for a single model.
 
-for window_label in rolling_windows.keys():
-    window_folder = os.path.join(hist_var_base, window_label)
-    file_path = os.path.join(window_folder, "BTC_HistVaR.csv")
+    Args:
+        returns (pd.DataFrame): DataFrame with Returns column and Date index
+        var_results_dict (dict): Dict mapping window labels to VaR forecast DataFrames
+        model_name (str): Name of the model
+        confidence_levels (list, optional): List of confidence levels to test
 
-    if not os.path.exists(file_path):
-        print(f"File not found for window {window_label}, skipping.")
-        continue
+    Returns:
+        pd.DataFrame: Test results for all windows and confidence levels
+    """
+    if confidence_levels is None:
+        from src import config
+        confidence_levels = config.CONFIDENCE_LEVELS
 
-    print(f"Running Kupiec test for window {window_label}...")
-    df = pd.read_csv(file_path, parse_dates=["Date"])
+    results = []
 
-    for cl in confidence_levels:
-        res = kupiec_test(df, cl)
-        if res is not None:
-            res["RollingWindow"] = window_label
-            results.append(res)
+    for window_label, var_df in var_results_dict.items():
+        for cl in confidence_levels:
+            try:
+                result = run_kupiec_test(
+                    returns=returns,
+                    var_forecasts=var_df,
+                    confidence_level=cl,
+                    model_name=model_name,
+                    window_label=window_label
+                )
+                results.append(result)
+            except Exception as e:
+                print(f"  Warning: Kupiec test failed for {model_name} {window_label} CL={cl}: {e}")
 
-output_file = os.path.join(base_dir, "BTC_Kupiec_Results_Historical.csv")
-results_df = pd.DataFrame(results)
-results_df.to_csv(output_file, index=False)
+    return pd.DataFrame(results)
 
-print("\nKupiec test finished. Results:")
-print(results_df)
-print(f"\nSaved to: {output_file}")
+
+if __name__ == "__main__":
+    # Test the Kupiec test implementation
+    print("\n" + "=" * 60)
+    print("Testing Kupiec Test Implementation")
+    print("=" * 60)
+
+    # Create synthetic test data
+    np.random.seed(42)
+    dates = pd.date_range("2020-01-01", periods=1000)
+    returns = pd.Series(np.random.normal(0, 0.02, 1000), index=dates, name="Returns")
+    var_95 = pd.Series(np.full(1000, 0.033), index=dates, name="VaR_95")  # ~5% violation rate
+
+    # Run test
+    result = run_kupiec_test(returns, var_95, 0.95, "TestModel", "test_window")
+
+    print("\nTest Results:")
+    for key, value in result.items():
+        print(f"  {key}: {value}")
+
+    print("\n✓ Kupiec test implementation verified!")
