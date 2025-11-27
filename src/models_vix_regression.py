@@ -4,7 +4,7 @@ VIX-Regression Value-at-Risk model.
 This model predicts Bitcoin volatility using the VIX (CBOE Volatility Index)
 and converts it to Value-at-Risk forecasts.
 
-CRITICAL FIX: This implementation uses LAGGED VIX (t-1) to forecast volatility at time t,
+This implementation uses LAGGED VIX (t-1) to forecast volatility at time t,
 ensuring we have no look-ahead bias and create true out-of-sample forecasts.
 """
 
@@ -20,7 +20,7 @@ def calculate_vix_regression_var(data, rolling_windows=None, confidence_levels=N
 
     This function:
     1. Uses a rolling window to estimate the relationship between VIX and realized volatility
-    2. CRITICAL: Uses VIX from time (i-1) to forecast volatility at time i (avoiding look-ahead bias)
+    2. Uses VIX from time (i-1) to forecast volatility at time i (avoiding look-ahead bias)
     3. Converts predicted volatility to VaR using normal distribution quantiles
 
     Args:
@@ -101,14 +101,10 @@ def _compute_var_for_window(df, window_size, confidence_levels):
         # Fit linear regression: realized_vol = intercept + slope * VIX
         slope, intercept = np.polyfit(x_win, y_win, 1)
 
-        # CRITICAL FIX: Use VIX from time (i-1) to forecast time i
-        # OLD (WRONG): sigma_ann = intercept + slope * x[i]
-        # NEW (CORRECT): sigma_ann = intercept + slope * x[i-1]
-        #
-        # At time i, we only have information up to time i-1.
-        # Using x[i] would be look-ahead bias (using future information).
-        # Using x[i-1] makes this a TRUE forecast.
-        sigma_ann = intercept + slope * x[i - 1]  # LAGGED VIX
+        # CRITICAL: Use VIX from time (i-1) to forecast time i
+        # At time i, we only have information up to time i-1, so we must use
+        # the lagged VIX value to avoid look-ahead bias and create a true forecast.
+        sigma_ann = intercept + slope * x[i - 1]  # Use lagged VIX
 
         # Validate prediction (volatility must be positive and finite)
         if not np.isfinite(sigma_ann) or sigma_ann <= 0:
