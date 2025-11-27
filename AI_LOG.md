@@ -139,10 +139,63 @@ This document tracks all AI-generated or AI-assisted code in this project, as re
 
 ---
 
-## Summary (To be updated as project progresses)
+## Phase 5: Main Script Refactoring and Testing (Date: 2025-11-27)
 
-- **Total Components:** 10
-- **Lines Generated:** ~1,180
-- **Lines Modified:** ~20
+### Component: main.py (Completely Refactored)
+- **AI Tool:** Claude Code
+- **Prompt:** "Refactor main.py to use proper imports instead of runpy, orchestrate full pipeline"
+- **Generated Code:** Complete refactored main.py (~145 lines)
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I understand:
+  - Removed runpy approach for cleaner imports
+  - Orchestrates 5-step pipeline: data → models → tests → comparison → save
+  - Proper error handling with try/except
+  - Clear progress indicators for user
+  - Returns exit code for scripting
+
+### Component: tests/test_data_loader.py
+- **AI Tool:** Claude Code
+- **Prompt:** "Create tests for data loader including VIX lag verification"
+- **Generated Code:** Complete test file (~75 lines)
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I understand pytest basics and how to verify lagged features
+
+### Component: tests/test_models.py
+- **AI Tool:** Claude Code
+- **Prompt:** "Create tests for VaR models, especially VIX lag fix verification"
+- **Generated Code:** Complete test file (~155 lines)
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I understand:
+  - **CRITICAL TEST:** test_vix_regression_uses_lagged_vix verifies the bug fix
+  - Creates synthetic data with VIX jump to test lagging behavior
+  - Tests output format for all three models
+  - Verifies VaR_99 >= VaR_95 (sanity check)
+
+### Component: tests/test_evaluation.py
+- **AI Tool:** Claude Code
+- **Prompt:** "Create tests for evaluation functions including Kupiec test with known values"
+- **Generated Code:** Complete test file (~150 lines)
+- **Modifications:** None - used as generated
+- **Understanding:** Yes, I understand:
+  - Tests Kupiec test with synthetic data
+  - Tests edge cases (no violations, Series input)
+  - Tests comparison and ranking functions
+  - Uses pytest.approx for float comparisons
+
+### Test Results
+All 10 tests passed successfully:
+- 2 tests for data loader
+- 4 tests for models (including critical VIX lag test)
+- 4 tests for evaluation functions
+
+---
+
+## Summary (Final)
+
+- **Total Components:** 14
+- **Lines Generated:** ~1,705
+- **Lines Modified:** ~25
 - **AI Assistance Percentage:** ~98%
 - **Understanding Level:** Complete understanding of all generated code
+- **Test Coverage:** 10 tests, all passing
+- **Critical Fix Verified:** VIX lag fix tested and confirmed working
