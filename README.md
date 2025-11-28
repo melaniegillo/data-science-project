@@ -28,7 +28,7 @@ All models are evaluated using:
 ### Prerequisites
 
 - Python >= 3.10
-- `uv` package manager (recommended) or `pip`
+- `uv` package manager
 
 ### Setup Instructions
 
@@ -37,21 +37,17 @@ All models are evaluated using:
    cd data-science-project
    ```
 
-2. **Install dependencies using uv**:
+2. **Install uv** (if you don't have it):
    ```bash
-   # Install uv if you don't have it
-   pip install uv
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
 
-   # Install project dependencies
+3. **Install project dependencies**:
+   ```bash
    uv sync
    ```
 
-   Alternatively, with pip:
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-3. **Verify installation**:
+4. **Verify installation**:
    ```bash
    # Run tests
    uv run pytest
@@ -115,7 +111,7 @@ data-science-project/
 │   ├── data_loader.py          # Data loading and preprocessing
 │   ├── models_historical.py    # Historical VaR model
 │   ├── models_monte_carlo.py   # Monte Carlo VaR model
-│   ├── models_vix_regression.py # VIX-Regression VaR model (with lag fix)
+│   ├── models_vix_regression.py # VIX-Regression VaR model
 │   ├── evaluation_kupiec.py    # Kupiec test implementation
 │   └── evaluation_summary.py   # Model comparison and ranking
 │
@@ -246,7 +242,7 @@ The project includes 10 comprehensive tests:
 
 **Model Tests** (4):
 - Test output format for all models
-- **Test VIX regression uses lagged VIX** (critical bug fix verification)
+- **Test VIX regression uses lagged VIX** - Verifies proper lagged feature implementation
 - Test VaR_99 >= VaR_95 (sanity check)
 
 **Evaluation Tests** (4):
@@ -270,11 +266,11 @@ This project was developed with assistance from Claude Code (Claude Sonnet 4.5).
 
 - Configuration module
 - Data loader with error handling
-- All three VaR models (with critical VIX lag fix)
+- All three VaR models with proper lagged feature usage
 - Evaluation framework
 - Comprehensive test suite
 
-**Critical Fix**: The VIX regression model originally had a look-ahead bias bug (using contemporaneous VIX). This was identified and fixed with AI assistance to use lagged VIX for true forecasting.
+**Implementation Highlight**: The VIX regression model correctly uses lagged VIX (t-1) to forecast volatility at time t, avoiding look-ahead bias and ensuring true out-of-sample forecasting comparable to the other models.
 
 For detailed AI usage log, see `AI_LOG.md`.
 

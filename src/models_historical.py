@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from src import config
 from src.validation import validate_model_inputs, validate_required_columns
+from src.model_utils import compute_var_rolling_window
 
 __all__ = ["calculate_historical_var"]
 
@@ -71,47 +72,38 @@ def _compute_var_for_window(
     """
     df = data.copy()
 
-    # Reset index to use integer indexing
+    # Extract dates and reset index for integer-based indexing
     if df.index.name == "Date" or "Date" in df.columns:
         dates = df.index if df.index.name == "Date" else df["Date"]
     else:
         dates = df.index
 
     df = df.reset_index(drop=True)
+    returns = df["Returns"].values
 
-    # Initialize VaR columns
-    var_results: dict[str, list[float]] = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
-    out_dates = []
-    skipped = 0
-
-    # Calculate VaR for each time point
-    for i in range(window_size, len(df)):
+    # Define VaR calculation for a single time point
+    def calculate_var_at_point(i: int, cls: list[float]) -> dict[str, float] | None:
+        """Calculate Historical VaR at time i using past returns."""
         # Get returns window: [i-window_size : i-1]
-        # This uses only past data to forecast time i
-        returns_window = df.loc[i - window_size : i - 1, "Returns"]
+        returns_window = returns[i - window_size : i]
 
         # Skip if window has NaN values
-        if returns_window.isna().any():
-            skipped += 1
-            continue
-
-        out_dates.append(dates[i])
+        if pd.isna(returns_window).any():
+            return None
 
         # Calculate VaR for each confidence level
-        for cl in confidence_levels:
+        var_point = {}
+        for cl in cls:
             # VaR is the negative of the quantile (we report losses as positive)
             # For 95% confidence, we take the 5th percentile of returns (losses)
             q = np.quantile(returns_window, 1 - cl)
             var_value = -q  # Negative because losses are negative returns
-            var_results[f"VaR_{int(cl * 100)}"].append(var_value)
+            var_point[f"VaR_{int(cl * 100)}"] = var_value
 
-    # Report skipped forecasts
-    if skipped > 0:
-        print(f"  ⚠ Skipped {skipped} forecasts due to invalid data")
+        return var_point
 
-    # Create output DataFrame
-    result_df = pd.DataFrame(var_results, index=out_dates)
-    return result_df
+    # Use shared rolling window utility
+    return compute_var_rolling_window(dates, window_size, confidence_levels, calculate_var_at_point)
 
 
 if __name__ == "__main__":

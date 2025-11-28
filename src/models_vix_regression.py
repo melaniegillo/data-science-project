@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from src import config
 from src.validation import validate_model_inputs, validate_required_columns
+from src.model_utils import compute_var_rolling_window
 
 __all__ = ["calculate_vix_regression_var"]
 
@@ -87,20 +88,16 @@ def _compute_var_for_window(
     y = df_clean["RealizedVol_21d"].values  # Realized volatility
     dates = df_clean.index
 
-    start = window_size
-    out_dates = []
-    var_results: dict[str, list[float]] = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
-    skipped = 0
-
-    for i in range(start, len(df_clean)):
+    # Define VaR calculation for a single time point
+    def calculate_var_at_point(i: int, cls: list[float]) -> dict[str, float] | None:
+        """Calculate VIX-Regression VaR at time i using lagged VIX."""
         # Training window: [i - window_size : i]
         x_win = x[i - window_size : i]
         y_win = y[i - window_size : i]
 
         # Skip if missing data in window
         if np.isnan(x_win).any() or np.isnan(y_win).any():
-            skipped += 1
-            continue
+            return None
 
         # Fit linear regression: realized_vol = intercept + slope * VIX
         slope, intercept = np.polyfit(x_win, y_win, 1)
@@ -114,27 +111,22 @@ def _compute_var_for_window(
 
         # Validate prediction (volatility must be positive and finite)
         if not np.isfinite(sigma_ann) or sigma_ann <= 0:
-            skipped += 1
-            continue
+            return None
 
         # Convert annualized volatility to daily volatility
         sigma_daily = sigma_ann / math.sqrt(config.TRADING_DAYS_PER_YEAR)
 
         # Calculate VaR for each confidence level
-        # VaR is the quantile of the loss distribution (positive = loss)
-        out_dates.append(dates[i])
-        for cl in confidence_levels:
+        var_point = {}
+        for cl in cls:
             z_score = config.Z_SCORES[cl]
             var_value = z_score * sigma_daily
-            var_results[f"VaR_{int(cl * 100)}"].append(var_value)
+            var_point[f"VaR_{int(cl * 100)}"] = var_value
 
-    # Report skipped forecasts
-    if skipped > 0:
-        print(f"  ⚠ Skipped {skipped} forecasts due to invalid data")
+        return var_point
 
-    # Create output DataFrame
-    result_df = pd.DataFrame(var_results, index=out_dates)
-    return result_df
+    # Use shared rolling window utility
+    return compute_var_rolling_window(dates, window_size, confidence_levels, calculate_var_at_point)
 
 
 if __name__ == "__main__":

@@ -8,23 +8,7 @@ import numpy as np
 from src.models_historical import calculate_historical_var
 from src.models_monte_carlo import calculate_monte_carlo_var
 from src.models_vix_regression import calculate_vix_regression_var
-
-
-def create_synthetic_data(n=300):
-    """Create synthetic data for testing."""
-    np.random.seed(42)
-    dates = pd.date_range("2020-01-01", periods=n)
-
-    data = pd.DataFrame(
-        {
-            "Returns": np.random.normal(0, 0.02, n),
-            "VIX_decimal": np.random.uniform(0.1, 0.3, n),
-            "RealizedVol_21d": np.random.uniform(0.3, 0.6, n),
-        },
-        index=dates,
-    )
-
-    return data
+from tests.test_helpers import create_synthetic_data, assert_var_output_valid
 
 
 def test_historical_var_output():
@@ -32,13 +16,7 @@ def test_historical_var_output():
     data = create_synthetic_data()
     results = calculate_historical_var(data, rolling_windows={"test": 21})
 
-    assert "test" in results
-    var_df = results["test"]
-    assert isinstance(var_df, pd.DataFrame)
-    assert "VaR_95" in var_df.columns
-    assert "VaR_99" in var_df.columns
-    assert len(var_df) > 0
-
+    assert_var_output_valid(results, "test")
     print("✓ Historical VaR output test passed")
 
 
@@ -47,13 +25,7 @@ def test_monte_carlo_var_output():
     data = create_synthetic_data()
     results = calculate_monte_carlo_var(data, rolling_windows={"test": 21})
 
-    assert "test" in results
-    var_df = results["test"]
-    assert isinstance(var_df, pd.DataFrame)
-    assert "VaR_95" in var_df.columns
-    assert "VaR_99" in var_df.columns
-    assert len(var_df) > 0
-
+    assert_var_output_valid(results, "test")
     print("✓ Monte Carlo VaR output test passed")
 
 
@@ -83,21 +55,14 @@ def test_vix_regression_uses_lagged_vix():
     # Run VIX regression with small window
     results = calculate_vix_regression_var(data, rolling_windows={"test": 21})
 
-    assert "test" in results, "Results should contain 'test' window"
+    # Validate basic output structure
+    assert_var_output_valid(results, "test")
     var_df = results["test"]
 
     # Find forecasts around the VIX jump (day 150)
     # At day 150, VIX jumps from 0.15 to 0.30
     # The forecast for day 151 should use VIX from day 150 (0.30) if using lagged correctly
     # But the forecast for day 150 should use VIX from day 149 (0.15)
-
-    # Get forecasts for days around the jump
-    forecast_dates = var_df.index
-
-    # Check that we have forecasts
-    assert len(var_df) > 0, "Should have VaR forecasts"
-    assert "VaR_95" in var_df.columns, "Should have VaR_95 column"
-    assert "VaR_99" in var_df.columns, "Should have VaR_99 column"
 
     # All VaR values should be positive and finite
     assert (var_df["VaR_95"] > 0).all(), "All VaR_95 values should be positive"

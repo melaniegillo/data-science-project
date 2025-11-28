@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from src import config
 from src.validation import validate_model_inputs, validate_required_columns
+from src.model_utils import compute_var_rolling_window
 
 __all__ = ["calculate_monte_carlo_var"]
 
@@ -81,19 +82,15 @@ def _compute_var_for_window(
     values = returns_series.values
     dates = returns_series.index
 
-    start = window_size
-    out_dates = []
-    var_results: dict[str, list[float]] = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
-    skipped = 0
-
-    for i in range(start, len(values)):
+    # Define VaR calculation for a single time point
+    def calculate_var_at_point(i: int, cls: list[float]) -> dict[str, float] | None:
+        """Calculate Monte Carlo VaR at time i using simulated returns."""
         # Get returns window: [i-window_size : i-1]
         window = values[i - window_size : i]
 
         # Skip if window has NaN values
         if np.isnan(window).any():
-            skipped += 1
-            continue
+            return None
 
         # Estimate parameters from window
         mu = float(np.mean(window))
@@ -101,8 +98,7 @@ def _compute_var_for_window(
 
         # Skip if parameters are invalid
         if not np.isfinite(mu):
-            skipped += 1
-            continue
+            return None
 
         # Handle edge case: zero volatility
         if not np.isfinite(sigma) or sigma == 0.0:
@@ -112,23 +108,19 @@ def _compute_var_for_window(
             # Simulate returns: N(μ, σ²)
             sims = mu + sigma * z
 
-        out_dates.append(dates[i])
-
         # Calculate VaR for each confidence level
-        for cl in confidence_levels:
+        var_point = {}
+        for cl in cls:
             # Get the quantile of simulated returns
             # For 95% confidence, we want the 5th percentile (worst 5% of outcomes)
             q = np.quantile(sims, 1 - cl)
             var_value = -q  # Negative because losses are negative returns
-            var_results[f"VaR_{int(cl * 100)}"].append(var_value)
+            var_point[f"VaR_{int(cl * 100)}"] = var_value
 
-    # Report skipped forecasts
-    if skipped > 0:
-        print(f"  ⚠ Skipped {skipped} forecasts due to invalid data")
+        return var_point
 
-    # Create output DataFrame
-    result_df = pd.DataFrame(var_results, index=out_dates)
-    return result_df
+    # Use shared rolling window utility
+    return compute_var_rolling_window(dates, window_size, confidence_levels, calculate_var_at_point)
 
 
 if __name__ == "__main__":

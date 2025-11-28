@@ -10,12 +10,66 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from src import config
+from src.validation import validate_required_columns
 
 
 class DataLoadError(Exception):
     """Custom exception for data loading errors."""
 
     pass
+
+
+def _load_excel_with_validation(
+    file_path: Path, required_columns: list[str], data_name: str
+) -> pd.DataFrame:
+    """
+    Generic Excel file loader with validation (eliminates code duplication).
+
+    This helper function encapsulates the common pattern for loading Excel files:
+    - Check file exists
+    - Read Excel
+    - Validate required columns
+    - Process Date column
+    - Sort and reset index
+
+    Args:
+        file_path: Path to Excel file
+        required_columns: List of required column names (must include 'Date')
+        data_name: Name for error messages and logging (e.g., "BTC", "VIX")
+
+    Returns:
+        DataFrame with validated columns, sorted by Date
+
+    Raises:
+        DataLoadError: If file not found, columns missing, or other errors
+    """
+    try:
+        # Check file exists
+        if not file_path.exists():
+            raise DataLoadError(f"{data_name} data file not found: {file_path}")
+
+        # Read Excel file
+        df = pd.read_excel(file_path)
+
+        # Validate required columns using shared validation
+        try:
+            validate_required_columns(df, required_columns)
+        except ValueError as e:
+            raise DataLoadError(f"{data_name} data {str(e)}")
+
+        # Process Date column and sort
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.sort_values("Date").reset_index(drop=True)
+
+        print(f"✓ Loaded {data_name} data: {len(df)} rows")
+        return df
+
+    except FileNotFoundError:
+        raise DataLoadError(f"{data_name} data file not found: {file_path}")
+    except DataLoadError:
+        raise  # Re-raise our custom errors
+    except Exception as e:
+        raise DataLoadError(f"Error loading {data_name} data: {str(e)}")
 
 
 def load_btc_data() -> pd.DataFrame:
@@ -28,30 +82,11 @@ def load_btc_data() -> pd.DataFrame:
     Raises:
         DataLoadError: If file not found or required columns missing
     """
-    try:
-        file_path = config.BTC_PROCESSED_FILE
-        if not file_path.exists():
-            raise DataLoadError(f"BTC data file not found: {file_path}")
-
-        df = pd.read_excel(file_path)
-
-        # Validate required columns
-        if "btc_price" not in df.columns:
-            raise DataLoadError("BTC data missing required column: 'btc_price'")
-        if "Date" not in df.columns:
-            raise DataLoadError("BTC data missing required column: 'Date'")
-
-        # Process dates and sort
-        df["Date"] = pd.to_datetime(df["Date"])
-        df = df.sort_values("Date").reset_index(drop=True)
-
-        print(f"✓ Loaded BTC data: {len(df)} rows")
-        return df
-
-    except FileNotFoundError:
-        raise DataLoadError(f"BTC data file not found: {config.BTC_PROCESSED_FILE}")
-    except Exception as e:
-        raise DataLoadError(f"Error loading BTC data: {str(e)}")
+    return _load_excel_with_validation(
+        file_path=config.BTC_PROCESSED_FILE,
+        required_columns=["Date", "btc_price"],
+        data_name="BTC",
+    )
 
 
 def load_vix_data() -> pd.DataFrame:
@@ -64,30 +99,11 @@ def load_vix_data() -> pd.DataFrame:
     Raises:
         DataLoadError: If file not found or required columns missing
     """
-    try:
-        file_path = config.VIX_PROCESSED_FILE
-        if not file_path.exists():
-            raise DataLoadError(f"VIX data file not found: {file_path}")
-
-        df = pd.read_excel(file_path)
-
-        # Validate required columns
-        if "vix_level" not in df.columns:
-            raise DataLoadError("VIX data missing required column: 'vix_level'")
-        if "Date" not in df.columns:
-            raise DataLoadError("VIX data missing required column: 'Date'")
-
-        # Process dates and sort
-        df["Date"] = pd.to_datetime(df["Date"])
-        df = df.sort_values("Date").reset_index(drop=True)
-
-        print(f"✓ Loaded VIX data: {len(df)} rows")
-        return df
-
-    except FileNotFoundError:
-        raise DataLoadError(f"VIX data file not found: {config.VIX_PROCESSED_FILE}")
-    except Exception as e:
-        raise DataLoadError(f"Error loading VIX data: {str(e)}")
+    return _load_excel_with_validation(
+        file_path=config.VIX_PROCESSED_FILE,
+        required_columns=["Date", "vix_level"],
+        data_name="VIX",
+    )
 
 
 def prepare_btc_vix_data() -> pd.DataFrame:
