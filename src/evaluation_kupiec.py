@@ -10,6 +10,7 @@ import math
 import numpy as np
 import pandas as pd
 from scipy.stats import chi2
+from src import config
 
 
 def run_kupiec_test(
@@ -88,7 +89,7 @@ def run_kupiec_test(
         p_value = 1 - chi2.cdf(LR_uc, df=1)
 
     expected_violations = n * p0
-    reject_5pct = p_value < 0.05  # Reject null at 5% significance level
+    reject_5pct = p_value < config.SIGNIFICANCE_LEVEL  # Reject null at configured significance level
 
     return {
         "Model": model_name,

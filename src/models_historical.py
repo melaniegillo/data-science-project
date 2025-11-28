@@ -9,6 +9,9 @@ of returns.
 import numpy as np
 import pandas as pd
 from src import config
+from src.validation import validate_model_inputs, validate_required_columns
+
+__all__ = ["calculate_historical_var"]
 
 
 def calculate_historical_var(
@@ -23,43 +26,21 @@ def calculate_historical_var(
     using the empirical quantile of returns from [t-window_size, ..., t-1].
 
     Args:
-        data (pd.DataFrame): DataFrame with 'Returns' column and Date index
-        rolling_windows (dict, optional): Dict mapping window labels to sizes.
-                                          Defaults to config.ROLLING_WINDOWS
-        confidence_levels (list, optional): List of confidence levels. Defaults to config.CONFIDENCE_LEVELS
+        data: DataFrame with 'Returns' column and Date index
+        rolling_windows: Dict mapping window labels to sizes. Defaults to config.ROLLING_WINDOWS
+        confidence_levels: List of confidence levels. Defaults to config.CONFIDENCE_LEVELS
 
     Returns:
-        dict: Dictionary mapping window labels to DataFrames with VaR forecasts
+        Dictionary mapping window labels to DataFrames with VaR forecasts
 
     Raises:
         ValueError: If 'Returns' column is missing from data or if inputs are invalid
     """
-    # Validate inputs
-    if data is None or len(data) == 0:
-        raise ValueError("data cannot be None or empty")
-
-    if rolling_windows is None:
-        rolling_windows = config.ROLLING_WINDOWS
-    if confidence_levels is None:
-        confidence_levels = config.CONFIDENCE_LEVELS
-
-    # Validate window sizes
-    for label, window_size in rolling_windows.items():
-        if window_size <= 0:
-            raise ValueError(f"Window size must be positive, got {window_size} for {label}")
-        if window_size > len(data):
-            raise ValueError(
-                f"Window size {window_size} for {label} exceeds data length {len(data)}"
-            )
-
-    # Validate confidence levels
-    for cl in confidence_levels:
-        if not 0 < cl < 1:
-            raise ValueError(f"Confidence level must be in (0, 1), got {cl}")
-
-    # Validate required columns
-    if "Returns" not in data.columns:
-        raise ValueError("Data must have 'Returns' column")
+    # Use shared validation (replaces ~20 lines of duplicated code)
+    rolling_windows, confidence_levels = validate_model_inputs(
+        data, rolling_windows, confidence_levels
+    )
+    validate_required_columns(data, ["Returns"])
 
     results = {}
 

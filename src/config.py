@@ -47,6 +47,14 @@ VIX_LAG_DAYS: int = 1  # Use VIX from t-1 to forecast time t
 REALIZED_VOL_WINDOW: int = 21  # Days for realized volatility calculation
 TRADING_DAYS_PER_YEAR: int = 252
 
+# Backtesting configuration
+SIGNIFICANCE_LEVEL: float = 0.05  # For hypothesis tests (5% significance)
+MIN_OBSERVATIONS_KUPIEC: int = 5  # Minimum observations for Kupiec test validity
+MIN_OBSERVATIONS_CHRISTOFFERSEN: int = 200  # Minimum for independence test
+
+# Output configuration
+RESULTS_DECIMAL_PLACES: int = 4  # Decimal places in output CSVs
+
 
 def ensure_results_dir() -> None:
     """Create results directory and subdirectories if they don't exist."""
