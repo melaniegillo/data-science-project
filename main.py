@@ -21,6 +21,7 @@ from src.evaluation.summary import (
     compare_models,
     rank_models_by_coverage,
     save_all_results,
+    save_kupiec_tests,
     save_var_forecasts,
     print_summary,
 )
@@ -103,6 +104,14 @@ def main() -> int:
 
         print("\n✓ All Kupiec tests completed!")
 
+        # Save individual Kupiec test files
+        all_kupiec_results = {
+            "Historical": historical_kupiec,
+            "MonteCarlo": montecarlo_kupiec,
+            "VIXRegression": vix_regression_kupiec,
+        }
+        save_kupiec_tests(all_kupiec_results)
+
         # Step 4: Combine results and generate comparisons
         print("\n" + "=" * 80)
         print("STEP 4: Generating Model Comparisons")
@@ -144,7 +153,8 @@ def main() -> int:
         print("=" * 80)
         print(f"\nResults saved to: {config.RESULTS_DIR}")
         print("\nKey files:")
-        print(f"  - BTC_Kupiec_Results_All.csv (all Kupiec test results)")
+        print(f"  - BTC_Kupiec_Results_All.csv (combined Kupiec results)")
+        print(f"  - kupiec_tests/ (individual Kupiec tests per model)")
         print(f"  - comparisons/model_comparison.csv (detailed comparison)")
         print(f"  - comparisons/model_rankings.csv (model rankings)")
         print(f"  - var_forecasts/ (individual VaR forecasts per model/window)")

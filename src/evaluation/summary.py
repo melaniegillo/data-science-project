@@ -108,6 +108,41 @@ def rank_models_by_coverage(comparison_df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(rankings, ignore_index=True)
 
 
+def save_kupiec_tests(
+    kupiec_results: dict[str, pd.DataFrame],
+    output_dir: Path | None = None,
+) -> list[Path]:
+    """
+    Save individual Kupiec test result files for each model.
+
+    Args:
+        kupiec_results: Dict mapping model names to Kupiec test DataFrames
+        output_dir: Output directory. Defaults to config.RESULTS_DIR / "kupiec_tests"
+
+    Returns:
+        List of saved file paths
+    """
+    if output_dir is None:
+        output_dir = config.RESULTS_DIR / "kupiec_tests"
+
+    output_dir.mkdir(exist_ok=True, parents=True)
+
+    saved_files = []
+
+    for model_name, kupiec_df in kupiec_results.items():
+        # Create filename: ModelName_Kupiec.csv
+        filename = f"{model_name}_Kupiec.csv"
+        filepath = output_dir / filename
+
+        # Save Kupiec test results
+        kupiec_df.to_csv(filepath, index=False)
+        saved_files.append(filepath)
+
+    print(f"\n✓ Saved {len(saved_files)} Kupiec test files to: {output_dir}")
+
+    return saved_files
+
+
 def save_var_forecasts(
     var_results: dict[str, dict[str, pd.DataFrame]],
     output_dir: Path | None = None,

@@ -59,6 +59,7 @@ RESULTS_DECIMAL_PLACES: int = 4  # Decimal places in output CSVs
 def ensure_results_dir() -> None:
     """Create results directory and subdirectories if they don't exist."""
     RESULTS_DIR.mkdir(exist_ok=True)
+    (RESULTS_DIR / "kupiec_tests").mkdir(exist_ok=True)
     (RESULTS_DIR / "comparisons").mkdir(exist_ok=True)
     (RESULTS_DIR / "var_forecasts").mkdir(exist_ok=True)
     (RESULTS_DIR / "figures").mkdir(exist_ok=True)
