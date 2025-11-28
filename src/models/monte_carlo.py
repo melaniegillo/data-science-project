@@ -9,8 +9,8 @@ historical data.
 import numpy as np
 import pandas as pd
 from src import config
-from src.validation import validate_model_inputs, validate_required_columns
-from src.model_utils import compute_var_rolling_window
+from src.utils.validation import validate_model_inputs, validate_required_columns
+from src.models.utils import compute_var_rolling_window
 
 __all__ = ["calculate_monte_carlo_var"]
 

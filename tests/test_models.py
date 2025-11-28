@@ -5,10 +5,10 @@ Tests for VaR models, especially the VIX lag fix.
 import pytest
 import pandas as pd
 import numpy as np
-from src.models_historical import calculate_historical_var
-from src.models_monte_carlo import calculate_monte_carlo_var
-from src.models_vix_regression import calculate_vix_regression_var
-from tests.test_helpers import create_synthetic_data, assert_var_output_valid
+from src.models.historical import calculate_historical_var
+from src.models.monte_carlo import calculate_monte_carlo_var
+from src.models.vix_regression import calculate_vix_regression_var
+from tests.utils import create_synthetic_data, assert_var_output_valid
 
 
 def test_historical_var_output():

@@ -5,8 +5,8 @@ Tests for evaluation functions.
 import pytest
 import pandas as pd
 import numpy as np
-from src.evaluation_kupiec import run_kupiec_test
-from src.evaluation_summary import compare_models, rank_models_by_coverage
+from src.evaluation.kupiec import run_kupiec_test
+from src.evaluation.summary import compare_models, rank_models_by_coverage
 
 
 def test_kupiec_test_basic():

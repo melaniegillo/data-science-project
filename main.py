@@ -11,11 +11,11 @@ This script orchestrates the entire VaR analysis pipeline:
 
 from src import config
 from src.data_loader import prepare_btc_vix_data
-from src.models_historical import calculate_historical_var
-from src.models_monte_carlo import calculate_monte_carlo_var
-from src.models_vix_regression import calculate_vix_regression_var
-from src.evaluation_kupiec import run_kupiec_tests_for_model
-from src.evaluation_summary import (
+from src.models.historical import calculate_historical_var
+from src.models.monte_carlo import calculate_monte_carlo_var
+from src.models.vix_regression import calculate_vix_regression_var
+from src.evaluation.kupiec import run_kupiec_tests_for_model
+from src.evaluation.summary import (
     combine_kupiec_results,
     compare_models,
     rank_models_by_coverage,

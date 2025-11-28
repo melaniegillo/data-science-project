@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from src import config
-from src.validation import validate_required_columns
+from src.utils.validation import validate_required_columns
 
 
 class DataLoadError(Exception):
@@ -178,7 +178,7 @@ def prepare_btc_vix_data() -> pd.DataFrame:
             print("Review warnings above - results may be affected\n")
 
         # Save to CSV
-        output_folder = config.SRC_DIR / "CSV_BTCVIX"
+        output_folder = config.PROJECT_ROOT / "data" / "CSV_BTCVIX"
         output_folder.mkdir(exist_ok=True)
         output_file = output_folder / "BTC_VIX_returns.csv"
         data.to_csv(output_file, index=False)
