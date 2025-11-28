@@ -108,6 +108,42 @@ def rank_models_by_coverage(comparison_df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(rankings, ignore_index=True)
 
 
+def save_var_forecasts(
+    var_results: dict[str, dict[str, pd.DataFrame]],
+    output_dir: Path | None = None,
+) -> list[Path]:
+    """
+    Save individual VaR forecast files for each model and window.
+
+    Args:
+        var_results: Nested dict {model_name: {window_label: var_df}}
+        output_dir: Output directory. Defaults to config.RESULTS_DIR / "var_forecasts"
+
+    Returns:
+        List of saved file paths
+    """
+    if output_dir is None:
+        output_dir = config.RESULTS_DIR / "var_forecasts"
+
+    output_dir.mkdir(exist_ok=True, parents=True)
+
+    saved_files = []
+
+    for model_name, windows_dict in var_results.items():
+        for window_label, var_df in windows_dict.items():
+            # Create filename: ModelName_WindowLabel.csv
+            filename = f"{model_name}_{window_label}.csv"
+            filepath = output_dir / filename
+
+            # Save with Date index
+            var_df.to_csv(filepath, float_format=f"%.{config.RESULTS_DECIMAL_PLACES}f")
+            saved_files.append(filepath)
+
+    print(f"\n✓ Saved {len(saved_files)} VaR forecast files to: {output_dir}")
+
+    return saved_files
+
+
 def save_all_results(
     kupiec_results: pd.DataFrame,
     comparison_stats: pd.DataFrame,

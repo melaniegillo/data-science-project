@@ -6,7 +6,8 @@ This script orchestrates the entire VaR analysis pipeline:
 2. Calculate VaR using three models (Historical, Monte Carlo, VIX-Regression)
 3. Run Kupiec tests for all models
 4. Generate model comparison statistics
-5. Save all results
+5. Save all results (CSV files)
+6. Generate visualizations (plots)
 """
 
 from src import config
@@ -20,8 +21,10 @@ from src.evaluation.summary import (
     compare_models,
     rank_models_by_coverage,
     save_all_results,
+    save_var_forecasts,
     print_summary,
 )
+from src.visualization import generate_all_plots
 
 
 def main() -> int:
@@ -74,6 +77,14 @@ def main() -> int:
 
         print("\n✓ All VaR models computed successfully!")
 
+        # Save individual VaR forecasts
+        all_var_results = {
+            "Historical": historical_results,
+            "MonteCarlo": montecarlo_results,
+            "VIXRegression": vix_regression_results,
+        }
+        save_var_forecasts(all_var_results)
+
         # Step 3: Run Kupiec tests
         print("\n" + "=" * 80)
         print("STEP 3: Running Kupiec Tests")
@@ -116,6 +127,15 @@ def main() -> int:
         config.ensure_results_dir()
         save_all_results(all_kupiec, comparison_stats, rankings)
 
+        # Step 6: Generate visualizations
+        print("\n" + "=" * 80)
+        print("STEP 6: Generating Visualizations")
+        print("=" * 80)
+
+        generate_all_plots(data, all_var_results, comparison_stats)
+
+        print("\n✓ All visualizations generated!")
+
         # Print summary
         print_summary(comparison_stats, rankings)
 
@@ -127,6 +147,8 @@ def main() -> int:
         print(f"  - BTC_Kupiec_Results_All.csv (all Kupiec test results)")
         print(f"  - comparisons/model_comparison.csv (detailed comparison)")
         print(f"  - comparisons/model_rankings.csv (model rankings)")
+        print(f"  - var_forecasts/ (individual VaR forecasts per model/window)")
+        print(f"  - figures/ (visualization plots)")
         print("\n" + "=" * 80)
 
     except Exception as e:
