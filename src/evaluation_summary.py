@@ -10,15 +10,15 @@ from pathlib import Path
 from src import config
 
 
-def combine_kupiec_results(results_list):
+def combine_kupiec_results(results_list: list[pd.DataFrame]) -> pd.DataFrame:
     """
     Combine Kupiec test results from multiple models.
 
     Args:
-        results_list (list): List of DataFrames with Kupiec results
+        results_list: List of DataFrames with Kupiec results
 
     Returns:
-        pd.DataFrame: Combined results sorted by model, window, and confidence level
+        Combined results sorted by model, window, and confidence level
     """
     if not results_list:
         raise ValueError("No results to combine")
@@ -32,7 +32,7 @@ def combine_kupiec_results(results_list):
     return combined
 
 
-def compare_models(kupiec_results):
+def compare_models(kupiec_results: pd.DataFrame) -> pd.DataFrame:
     """
     Generate model comparison statistics from Kupiec test results.
 
@@ -42,10 +42,10 @@ def compare_models(kupiec_results):
     3. Coverage accuracy comparison
 
     Args:
-        kupiec_results (pd.DataFrame): Combined Kupiec test results
+        kupiec_results: Combined Kupiec test results
 
     Returns:
-        pd.DataFrame: Comparison statistics
+        Comparison statistics
     """
     # Add deviation columns
     results = kupiec_results.copy()
@@ -74,15 +74,15 @@ def compare_models(kupiec_results):
     return comparison
 
 
-def rank_models_by_coverage(comparison_df):
+def rank_models_by_coverage(comparison_df: pd.DataFrame) -> pd.DataFrame:
     """
     Rank models by coverage accuracy (smallest absolute deviation is best).
 
     Args:
-        comparison_df (pd.DataFrame): Comparison statistics
+        comparison_df: Comparison statistics
 
     Returns:
-        pd.DataFrame: Models ranked by performance for each window/CL combination
+        Models ranked by performance for each window/CL combination
     """
     rankings = []
 
@@ -108,15 +108,20 @@ def rank_models_by_coverage(comparison_df):
     return pd.concat(rankings, ignore_index=True)
 
 
-def save_all_results(kupiec_results, comparison_stats, rankings, output_dir=None):
+def save_all_results(
+    kupiec_results: pd.DataFrame,
+    comparison_stats: pd.DataFrame,
+    rankings: pd.DataFrame,
+    output_dir: Path | None = None,
+) -> dict[str, Path]:
     """
     Save all evaluation results to CSV files.
 
     Args:
-        kupiec_results (pd.DataFrame): Combined Kupiec results
-        comparison_stats (pd.DataFrame): Model comparison statistics
-        rankings (pd.DataFrame): Model rankings by coverage
-        output_dir (Path, optional): Output directory. Defaults to config.RESULTS_DIR
+        kupiec_results: Combined Kupiec results
+        comparison_stats: Model comparison statistics
+        rankings: Model rankings by coverage
+        output_dir: Output directory. Defaults to config.RESULTS_DIR
     """
     if output_dir is None:
         output_dir = config.RESULTS_DIR
@@ -140,13 +145,13 @@ def save_all_results(kupiec_results, comparison_stats, rankings, output_dir=None
     return {"kupiec": kupiec_file, "comparison": comparison_file, "rankings": rankings_file}
 
 
-def print_summary(comparison_stats, rankings):
+def print_summary(comparison_stats: pd.DataFrame, rankings: pd.DataFrame) -> None:
     """
     Print a summary of model comparison results.
 
     Args:
-        comparison_stats (pd.DataFrame): Model comparison statistics
-        rankings (pd.DataFrame): Model rankings
+        comparison_stats: Model comparison statistics
+        rankings: Model rankings
     """
     print("\n" + "=" * 80)
     print("MODEL COMPARISON SUMMARY")

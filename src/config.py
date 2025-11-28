@@ -8,19 +8,19 @@ confidence levels, and model parameters.
 from pathlib import Path
 
 # Project paths
-PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
-SRC_DIR = PROJECT_ROOT / "src"
-RESULTS_DIR = PROJECT_ROOT / "results"
+PROJECT_ROOT: Path = Path(__file__).parent.parent
+DATA_DIR: Path = PROJECT_ROOT / "data"
+RAW_DATA_DIR: Path = DATA_DIR / "raw"
+PROCESSED_DATA_DIR: Path = DATA_DIR / "processed"
+SRC_DIR: Path = PROJECT_ROOT / "src"
+RESULTS_DIR: Path = PROJECT_ROOT / "results"
 
 # Data file names
-BTC_PROCESSED_FILE = PROCESSED_DATA_DIR / "dataprocessedbtc_daily.xlsx"
-VIX_PROCESSED_FILE = PROCESSED_DATA_DIR / "dataprocessedvix_daily.xlsx"
+BTC_PROCESSED_FILE: Path = PROCESSED_DATA_DIR / "dataprocessedbtc_daily.xlsx"
+VIX_PROCESSED_FILE: Path = PROCESSED_DATA_DIR / "dataprocessedvix_daily.xlsx"
 
 # Rolling window configurations (in trading days)
-ROLLING_WINDOWS = {
+ROLLING_WINDOWS: dict[str, int] = {
     "1m": 21,  # 1 month
     "3m": 63,  # 3 months
     "6m": 126,  # 6 months
@@ -28,27 +28,27 @@ ROLLING_WINDOWS = {
 }
 
 # Confidence levels for VaR calculations
-CONFIDENCE_LEVELS = [0.95, 0.99]
+CONFIDENCE_LEVELS: list[float] = [0.95, 0.99]
 
 # Z-scores for normal distribution quantiles
-Z_SCORES = {
+Z_SCORES: dict[float, float] = {
     0.95: 1.6448536269514722,
     0.99: 2.3263478740408408,
 }
 
 # Monte Carlo simulation parameters
-MONTE_CARLO_SIMS = 100_000
-RANDOM_SEED = 42
+MONTE_CARLO_SIMS: int = 100_000
+RANDOM_SEED: int = 42
 
 # VIX regression parameters
-VIX_LAG_DAYS = 1  # Use VIX from t-1 to forecast time t
+VIX_LAG_DAYS: int = 1  # Use VIX from t-1 to forecast time t
 
 # Volatility calculation parameters
-REALIZED_VOL_WINDOW = 21  # Days for realized volatility calculation
-TRADING_DAYS_PER_YEAR = 252
+REALIZED_VOL_WINDOW: int = 21  # Days for realized volatility calculation
+TRADING_DAYS_PER_YEAR: int = 252
 
 
-def ensure_results_dir():
+def ensure_results_dir() -> None:
     """Create results directory and subdirectories if they don't exist."""
     RESULTS_DIR.mkdir(exist_ok=True)
     (RESULTS_DIR / "kupiec_tests").mkdir(exist_ok=True)

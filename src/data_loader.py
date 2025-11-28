@@ -18,7 +18,7 @@ class DataLoadError(Exception):
     pass
 
 
-def load_btc_data():
+def load_btc_data() -> pd.DataFrame:
     """
     Load Bitcoin price data from processed Excel file.
 
@@ -54,7 +54,7 @@ def load_btc_data():
         raise DataLoadError(f"Error loading BTC data: {str(e)}")
 
 
-def load_vix_data():
+def load_vix_data() -> pd.DataFrame:
     """
     Load VIX index data from processed Excel file.
 
@@ -90,7 +90,7 @@ def load_vix_data():
         raise DataLoadError(f"Error loading VIX data: {str(e)}")
 
 
-def prepare_btc_vix_data():
+def prepare_btc_vix_data() -> pd.DataFrame:
     """
     Load, merge, and prepare Bitcoin and VIX data for VaR analysis.
 
@@ -178,7 +178,7 @@ def prepare_btc_vix_data():
         raise DataLoadError(f"Error preparing data: {str(e)}")
 
 
-def validate_data_quality(data):
+def validate_data_quality(data: pd.DataFrame) -> dict[str, int]:
     """
     Validate data quality and return summary of issues.
 
@@ -188,10 +188,10 @@ def validate_data_quality(data):
     - Extreme returns (>50% absolute suggests data error)
 
     Args:
-        data (pd.DataFrame): DataFrame with Returns, VIX_decimal columns
+        data: DataFrame with Returns, VIX_decimal columns
 
     Returns:
-        dict: Dictionary with keys: duplicates, negative_vix, extreme_returns, total_issues
+        Dictionary with keys: duplicates, negative_vix, extreme_returns, total_issues
     """
     issues = {"duplicates": 0, "negative_vix": 0, "extreme_returns": 0, "total_issues": 0}
 

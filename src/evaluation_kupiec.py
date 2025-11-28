@@ -13,8 +13,12 @@ from scipy.stats import chi2
 
 
 def run_kupiec_test(
-    returns, var_forecasts, confidence_level, model_name="Unknown", window_label=""
-):
+    returns: pd.Series | pd.DataFrame,
+    var_forecasts: pd.Series | pd.DataFrame,
+    confidence_level: float,
+    model_name: str = "Unknown",
+    window_label: str = "",
+) -> dict[str, float | int | bool | str]:
     """
     Run Kupiec unconditional coverage test on VaR forecasts.
 
@@ -23,14 +27,14 @@ def run_kupiec_test(
     violations about 5% of the time.
 
     Args:
-        returns (pd.Series or pd.DataFrame): Actual returns (index should be dates)
-        var_forecasts (pd.Series or pd.DataFrame): VaR forecasts with column like VaR_95
-        confidence_level (float): Confidence level (e.g., 0.95, 0.99)
-        model_name (str): Name of the model being tested
-        window_label (str): Rolling window label (e.g., '1m', '3m')
+        returns: Actual returns (index should be dates)
+        var_forecasts: VaR forecasts with column like VaR_95
+        confidence_level: Confidence level (e.g., 0.95, 0.99)
+        model_name: Name of the model being tested
+        window_label: Rolling window label (e.g., '1m', '3m')
 
     Returns:
-        dict: Test results including violations, expected violations, LR statistic, p-value
+        Test results including violations, expected violations, LR statistic, p-value
 
     Raises:
         ValueError: If required data is missing or invalid
@@ -100,18 +104,23 @@ def run_kupiec_test(
     }
 
 
-def run_kupiec_tests_for_model(returns, var_results_dict, model_name, confidence_levels=None):
+def run_kupiec_tests_for_model(
+    returns: pd.DataFrame,
+    var_results_dict: dict[str, pd.DataFrame],
+    model_name: str,
+    confidence_levels: list[float] | None = None,
+) -> pd.DataFrame:
     """
     Run Kupiec tests for all windows and confidence levels for a single model.
 
     Args:
-        returns (pd.DataFrame): DataFrame with Returns column and Date index
-        var_results_dict (dict): Dict mapping window labels to VaR forecast DataFrames
-        model_name (str): Name of the model
-        confidence_levels (list, optional): List of confidence levels to test
+        returns: DataFrame with Returns column and Date index
+        var_results_dict: Dict mapping window labels to VaR forecast DataFrames
+        model_name: Name of the model
+        confidence_levels: List of confidence levels to test
 
     Returns:
-        pd.DataFrame: Test results for all windows and confidence levels
+        Test results for all windows and confidence levels
     """
     if confidence_levels is None:
         from src import config

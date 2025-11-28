@@ -11,7 +11,11 @@ import pandas as pd
 from src import config
 
 
-def calculate_historical_var(data, rolling_windows=None, confidence_levels=None):
+def calculate_historical_var(
+    data: pd.DataFrame,
+    rolling_windows: dict[str, int] | None = None,
+    confidence_levels: list[float] | None = None,
+) -> dict[str, pd.DataFrame]:
     """
     Calculate Value-at-Risk using historical simulation (empirical quantiles).
 
@@ -70,7 +74,9 @@ def calculate_historical_var(data, rolling_windows=None, confidence_levels=None)
     return results
 
 
-def _compute_var_for_window(data, window_size, confidence_levels):
+def _compute_var_for_window(
+    data: pd.DataFrame, window_size: int, confidence_levels: list[float]
+) -> pd.DataFrame:
     """
     Compute Historical VaR for a single rolling window size.
 
@@ -80,7 +86,7 @@ def _compute_var_for_window(data, window_size, confidence_levels):
         confidence_levels: List of confidence levels
 
     Returns:
-        pd.DataFrame: VaR forecasts with columns VaR_95, VaR_99, etc.
+        VaR forecasts with columns VaR_95, VaR_99, etc.
     """
     df = data.copy()
 
@@ -93,7 +99,7 @@ def _compute_var_for_window(data, window_size, confidence_levels):
     df = df.reset_index(drop=True)
 
     # Initialize VaR columns
-    var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
+    var_results: dict[str, list[float]] = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
     out_dates = []
     skipped = 0
 

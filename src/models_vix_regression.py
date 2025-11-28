@@ -14,7 +14,11 @@ import pandas as pd
 from src import config
 
 
-def calculate_vix_regression_var(data, rolling_windows=None, confidence_levels=None):
+def calculate_vix_regression_var(
+    data: pd.DataFrame,
+    rolling_windows: dict[str, int] | None = None,
+    confidence_levels: list[float] | None = None,
+) -> dict[str, pd.DataFrame]:
     """
     Calculate Value-at-Risk using VIX regression model with LAGGED VIX for forecasting.
 
@@ -78,7 +82,9 @@ def calculate_vix_regression_var(data, rolling_windows=None, confidence_levels=N
     return results
 
 
-def _compute_var_for_window(df, window_size, confidence_levels):
+def _compute_var_for_window(
+    df: pd.DataFrame, window_size: int, confidence_levels: list[float]
+) -> pd.DataFrame:
     """
     Compute VaR forecasts for a single rolling window size.
 
@@ -93,7 +99,7 @@ def _compute_var_for_window(df, window_size, confidence_levels):
         confidence_levels: List of confidence levels for VaR
 
     Returns:
-        pd.DataFrame: VaR forecasts with columns VaR_95, VaR_99, etc.
+        VaR forecasts with columns VaR_95, VaR_99, etc.
     """
     # Clean data
     df_clean = df.dropna(subset=["RealizedVol_21d", "VIX_decimal"]).copy()
@@ -105,7 +111,7 @@ def _compute_var_for_window(df, window_size, confidence_levels):
 
     start = window_size
     out_dates = []
-    var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
+    var_results: dict[str, list[float]] = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
     skipped = 0
 
     for i in range(start, len(df_clean)):

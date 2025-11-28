@@ -24,8 +24,13 @@ from src.evaluation_summary import (
 )
 
 
-def main():
-    """Run the complete VaR analysis pipeline."""
+def main() -> int:
+    """
+    Run the complete VaR analysis pipeline.
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
     print("\n" + "=" * 80)
     print("BITCOIN VALUE-AT-RISK FORECASTING")
     print("=" * 80)

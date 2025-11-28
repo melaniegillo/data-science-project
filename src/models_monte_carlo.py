@@ -11,7 +11,11 @@ import pandas as pd
 from src import config
 
 
-def calculate_monte_carlo_var(data, rolling_windows=None, confidence_levels=None):
+def calculate_monte_carlo_var(
+    data: pd.DataFrame,
+    rolling_windows: dict[str, int] | None = None,
+    confidence_levels: list[float] | None = None,
+) -> dict[str, pd.DataFrame]:
     """
     Calculate Value-at-Risk using Monte Carlo simulation.
 
@@ -73,7 +77,9 @@ def calculate_monte_carlo_var(data, rolling_windows=None, confidence_levels=None
     return results
 
 
-def _compute_var_for_window(returns_series, window_size, confidence_levels):
+def _compute_var_for_window(
+    returns_series: pd.Series, window_size: int, confidence_levels: list[float]
+) -> pd.DataFrame:
     """
     Compute Monte Carlo VaR for a single rolling window size.
 
@@ -83,7 +89,7 @@ def _compute_var_for_window(returns_series, window_size, confidence_levels):
         confidence_levels: List of confidence levels
 
     Returns:
-        pd.DataFrame: VaR forecasts with columns VaR_95, VaR_99, etc.
+        VaR forecasts with columns VaR_95, VaR_99, etc.
     """
     # Use fixed random seed for reproducibility
     rng = np.random.default_rng(config.RANDOM_SEED)
@@ -96,7 +102,7 @@ def _compute_var_for_window(returns_series, window_size, confidence_levels):
 
     start = window_size
     out_dates = []
-    var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
+    var_results: dict[str, list[float]] = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
     skipped = 0
 
     for i in range(start, len(values)):
