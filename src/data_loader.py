@@ -155,6 +155,12 @@ def prepare_btc_vix_data():
         data[f"VIX_lag{lag_days}"] = data["VIX_decimal"].shift(lag_days)
         print(f"✓ Lagged VIX (lag={lag_days} days) for forecasting")
 
+        # Validate data quality
+        quality_issues = validate_data_quality(data)
+        if quality_issues["total_issues"] > 0:
+            print(f"\n⚠ Data quality check found {quality_issues['total_issues']} issues")
+            print("Review warnings above - results may be affected\n")
+
         # Save to CSV
         output_folder = config.SRC_DIR / "CSV_BTCVIX"
         output_folder.mkdir(exist_ok=True)
@@ -170,6 +176,52 @@ def prepare_btc_vix_data():
 
     except Exception as e:
         raise DataLoadError(f"Error preparing data: {str(e)}")
+
+
+def validate_data_quality(data):
+    """
+    Validate data quality and return summary of issues.
+
+    Checks for:
+    - Duplicate dates
+    - Negative VIX values (impossible)
+    - Extreme returns (>50% absolute suggests data error)
+
+    Args:
+        data (pd.DataFrame): DataFrame with Returns, VIX_decimal columns
+
+    Returns:
+        dict: Dictionary with keys: duplicates, negative_vix, extreme_returns, total_issues
+    """
+    issues = {"duplicates": 0, "negative_vix": 0, "extreme_returns": 0, "total_issues": 0}
+
+    # Check for duplicate dates
+    if "Date" in data.columns:
+        duplicates = data["Date"].duplicated().sum()
+    else:
+        duplicates = data.index.duplicated().sum()
+
+    if duplicates > 0:
+        issues["duplicates"] = duplicates
+        print(f"⚠ WARNING: Found {duplicates} duplicate dates")
+
+    # Check for negative VIX (impossible)
+    if "VIX_decimal" in data.columns:
+        negative_vix = (data["VIX_decimal"] < 0).sum()
+        if negative_vix > 0:
+            issues["negative_vix"] = negative_vix
+            print(f"⚠ WARNING: Found {negative_vix} negative VIX values")
+
+    # Check for extreme returns (> 50% or < -50% suggests data error)
+    if "Returns" in data.columns:
+        extreme = ((data["Returns"].abs() > 0.5) & data["Returns"].notna()).sum()
+        if extreme > 0:
+            issues["extreme_returns"] = extreme
+            print(f"⚠ WARNING: Found {extreme} extreme returns (>50% absolute)")
+
+    issues["total_issues"] = sum(v for k, v in issues.items() if k != "total_issues")
+
+    return issues
 
 
 if __name__ == "__main__":

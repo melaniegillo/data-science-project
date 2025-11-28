@@ -31,12 +31,30 @@ def calculate_monte_carlo_var(data, rolling_windows=None, confidence_levels=None
         dict: Dictionary mapping window labels to DataFrames with VaR forecasts
 
     Raises:
-        ValueError: If 'Returns' column is missing from data
+        ValueError: If 'Returns' column is missing from data or if inputs are invalid
     """
+    # Validate inputs
+    if data is None or len(data) == 0:
+        raise ValueError("data cannot be None or empty")
+
     if rolling_windows is None:
         rolling_windows = config.ROLLING_WINDOWS
     if confidence_levels is None:
         confidence_levels = config.CONFIDENCE_LEVELS
+
+    # Validate window sizes
+    for label, window_size in rolling_windows.items():
+        if window_size <= 0:
+            raise ValueError(f"Window size must be positive, got {window_size} for {label}")
+        if window_size > len(data):
+            raise ValueError(
+                f"Window size {window_size} for {label} exceeds data length {len(data)}"
+            )
+
+    # Validate confidence levels
+    for cl in confidence_levels:
+        if not 0 < cl < 1:
+            raise ValueError(f"Confidence level must be in (0, 1), got {cl}")
 
     # Validate required columns
     if "Returns" not in data.columns:
@@ -79,14 +97,25 @@ def _compute_var_for_window(returns_series, window_size, confidence_levels):
     start = window_size
     out_dates = []
     var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
+    skipped = 0
 
     for i in range(start, len(values)):
         # Get returns window: [i-window_size : i-1]
         window = values[i - window_size : i]
 
+        # Skip if window has NaN values
+        if np.isnan(window).any():
+            skipped += 1
+            continue
+
         # Estimate parameters from window
         mu = float(np.mean(window))
         sigma = float(np.std(window, ddof=1))  # Sample std dev
+
+        # Skip if parameters are invalid
+        if not np.isfinite(mu):
+            skipped += 1
+            continue
 
         # Handle edge case: zero volatility
         if not np.isfinite(sigma) or sigma == 0.0:
@@ -105,6 +134,10 @@ def _compute_var_for_window(returns_series, window_size, confidence_levels):
             q = np.quantile(sims, 1 - cl)
             var_value = -q  # Negative because losses are negative returns
             var_results[f"VaR_{int(cl * 100)}"].append(var_value)
+
+    # Report skipped forecasts
+    if skipped > 0:
+        print(f"  ⚠ Skipped {skipped} forecasts due to invalid data")
 
     # Create output DataFrame
     result_df = pd.DataFrame(var_results, index=out_dates)

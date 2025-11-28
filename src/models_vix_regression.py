@@ -34,12 +34,30 @@ def calculate_vix_regression_var(data, rolling_windows=None, confidence_levels=N
         dict: Dictionary mapping window labels to DataFrames with VaR forecasts
 
     Raises:
-        ValueError: If required columns are missing from data
+        ValueError: If required columns are missing from data or if inputs are invalid
     """
+    # Validate inputs
+    if data is None or len(data) == 0:
+        raise ValueError("data cannot be None or empty")
+
     if rolling_windows is None:
         rolling_windows = config.ROLLING_WINDOWS
     if confidence_levels is None:
         confidence_levels = config.CONFIDENCE_LEVELS
+
+    # Validate window sizes
+    for label, window_size in rolling_windows.items():
+        if window_size <= 0:
+            raise ValueError(f"Window size must be positive, got {window_size} for {label}")
+        if window_size > len(data):
+            raise ValueError(
+                f"Window size {window_size} for {label} exceeds data length {len(data)}"
+            )
+
+    # Validate confidence levels
+    for cl in confidence_levels:
+        if not 0 < cl < 1:
+            raise ValueError(f"Confidence level must be in (0, 1), got {cl}")
 
     # Validate required columns
     required_cols = ["RealizedVol_21d", "VIX_decimal"]
@@ -88,6 +106,7 @@ def _compute_var_for_window(df, window_size, confidence_levels):
     start = window_size
     out_dates = []
     var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
+    skipped = 0
 
     for i in range(start, len(df_clean)):
         # Training window: [i - window_size : i]
@@ -96,6 +115,7 @@ def _compute_var_for_window(df, window_size, confidence_levels):
 
         # Skip if missing data in window
         if np.isnan(x_win).any() or np.isnan(y_win).any():
+            skipped += 1
             continue
 
         # Fit linear regression: realized_vol = intercept + slope * VIX
@@ -104,10 +124,13 @@ def _compute_var_for_window(df, window_size, confidence_levels):
         # CRITICAL: Use VIX from time (i-1) to forecast time i
         # At time i, we only have information up to time i-1, so we must use
         # the lagged VIX value to avoid look-ahead bias and create a true forecast.
+        # Safety check: i >= start = window_size >= 21, so i-1 >= 20 (always valid)
+        assert i - 1 >= 0, f"Index {i-1} out of bounds (i={i}, window_size={window_size})"
         sigma_ann = intercept + slope * x[i - 1]  # Use lagged VIX
 
         # Validate prediction (volatility must be positive and finite)
         if not np.isfinite(sigma_ann) or sigma_ann <= 0:
+            skipped += 1
             continue
 
         # Convert annualized volatility to daily volatility
@@ -120,6 +143,10 @@ def _compute_var_for_window(df, window_size, confidence_levels):
             z_score = config.Z_SCORES[cl]
             var_value = z_score * sigma_daily
             var_results[f"VaR_{int(cl * 100)}"].append(var_value)
+
+    # Report skipped forecasts
+    if skipped > 0:
+        print(f"  ⚠ Skipped {skipped} forecasts due to invalid data")
 
     # Create output DataFrame
     result_df = pd.DataFrame(var_results, index=out_dates)

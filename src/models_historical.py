@@ -28,12 +28,30 @@ def calculate_historical_var(data, rolling_windows=None, confidence_levels=None)
         dict: Dictionary mapping window labels to DataFrames with VaR forecasts
 
     Raises:
-        ValueError: If 'Returns' column is missing from data
+        ValueError: If 'Returns' column is missing from data or if inputs are invalid
     """
+    # Validate inputs
+    if data is None or len(data) == 0:
+        raise ValueError("data cannot be None or empty")
+
     if rolling_windows is None:
         rolling_windows = config.ROLLING_WINDOWS
     if confidence_levels is None:
         confidence_levels = config.CONFIDENCE_LEVELS
+
+    # Validate window sizes
+    for label, window_size in rolling_windows.items():
+        if window_size <= 0:
+            raise ValueError(f"Window size must be positive, got {window_size} for {label}")
+        if window_size > len(data):
+            raise ValueError(
+                f"Window size {window_size} for {label} exceeds data length {len(data)}"
+            )
+
+    # Validate confidence levels
+    for cl in confidence_levels:
+        if not 0 < cl < 1:
+            raise ValueError(f"Confidence level must be in (0, 1), got {cl}")
 
     # Validate required columns
     if "Returns" not in data.columns:
@@ -77,6 +95,7 @@ def _compute_var_for_window(data, window_size, confidence_levels):
     # Initialize VaR columns
     var_results = {f"VaR_{int(cl * 100)}": [] for cl in confidence_levels}
     out_dates = []
+    skipped = 0
 
     # Calculate VaR for each time point
     for i in range(window_size, len(df)):
@@ -86,6 +105,7 @@ def _compute_var_for_window(data, window_size, confidence_levels):
 
         # Skip if window has NaN values
         if returns_window.isna().any():
+            skipped += 1
             continue
 
         out_dates.append(dates[i])
@@ -97,6 +117,10 @@ def _compute_var_for_window(data, window_size, confidence_levels):
             q = np.quantile(returns_window, 1 - cl)
             var_value = -q  # Negative because losses are negative returns
             var_results[f"VaR_{int(cl * 100)}"].append(var_value)
+
+    # Report skipped forecasts
+    if skipped > 0:
+        print(f"  ⚠ Skipped {skipped} forecasts due to invalid data")
 
     # Create output DataFrame
     result_df = pd.DataFrame(var_results, index=out_dates)
