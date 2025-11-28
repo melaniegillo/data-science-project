@@ -8,7 +8,7 @@ import numpy as np
 from src.data_loader import DataLoadError, prepare_btc_vix_data
 
 
-def test_prepare_btc_vix_data():
+def test_prepare_btc_vix_data() -> None:
     """Test that data preparation runs without errors."""
     try:
         data = prepare_btc_vix_data()
@@ -44,7 +44,7 @@ def test_prepare_btc_vix_data():
         pytest.skip(f"Data files not available: {e}")
 
 
-def test_data_columns():
+def test_data_columns() -> None:
     """Test that all expected columns are present."""
     try:
         data = prepare_btc_vix_data()

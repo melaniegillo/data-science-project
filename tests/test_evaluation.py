@@ -9,7 +9,7 @@ from src.evaluation.kupiec import run_kupiec_test
 from src.evaluation.summary import compare_models, rank_models_by_coverage
 
 
-def test_kupiec_test_basic():
+def test_kupiec_test_basic() -> None:
     """Test Kupiec test with known violation rate."""
     np.random.seed(42)
     n = 1000
@@ -45,7 +45,7 @@ def test_kupiec_test_basic():
     print(f"  - p-value: {result['p_value']:.4f}")
 
 
-def test_kupiec_test_edge_cases():
+def test_kupiec_test_edge_cases() -> None:
     """Test Kupiec test handles edge cases."""
     dates = pd.date_range("2020-01-01", periods=100)
 
@@ -70,7 +70,7 @@ def test_kupiec_test_edge_cases():
     print("✓ Kupiec test edge case (Series input) passed")
 
 
-def test_compare_models():
+def test_compare_models() -> None:
     """Test model comparison function."""
     # Create synthetic Kupiec results
     test_data = []
@@ -111,7 +111,7 @@ def test_compare_models():
     print("✓ Model comparison test passed")
 
 
-def test_rank_models_by_coverage():
+def test_rank_models_by_coverage() -> None:
     """Test model ranking function."""
     # Create comparison data
     comparison_data = []

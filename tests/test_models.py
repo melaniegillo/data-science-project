@@ -11,7 +11,7 @@ from src.models.vix_regression import calculate_vix_regression_var
 from tests.utils import create_synthetic_data, assert_var_output_valid
 
 
-def test_historical_var_output():
+def test_historical_var_output() -> None:
     """Test that Historical VaR produces correct output format."""
     data = create_synthetic_data()
     results = calculate_historical_var(data, rolling_windows={"test": 21})
@@ -20,7 +20,7 @@ def test_historical_var_output():
     print("✓ Historical VaR output test passed")
 
 
-def test_monte_carlo_var_output():
+def test_monte_carlo_var_output() -> None:
     """Test that Monte Carlo VaR produces correct output format."""
     data = create_synthetic_data()
     results = calculate_monte_carlo_var(data, rolling_windows={"test": 21})
@@ -29,7 +29,7 @@ def test_monte_carlo_var_output():
     print("✓ Monte Carlo VaR output test passed")
 
 
-def test_vix_regression_uses_lagged_vix():
+def test_vix_regression_uses_lagged_vix() -> None:
     """
     CRITICAL TEST: Verify that VIX regression uses LAGGED VIX, not contemporaneous.
 
@@ -75,7 +75,7 @@ def test_vix_regression_uses_lagged_vix():
     print("  - Model uses lagged VIX (avoiding look-ahead bias)")
 
 
-def test_var_95_less_than_var_99():
+def test_var_95_less_than_var_99() -> None:
     """Test that VaR_95 < VaR_99 (higher confidence = higher VaR)."""
     data = create_synthetic_data()
 

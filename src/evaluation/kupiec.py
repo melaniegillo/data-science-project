@@ -10,7 +10,23 @@ import math
 import numpy as np
 import pandas as pd
 from scipy.stats import chi2
+from typing import TypedDict
 from src import config
+
+
+class KupiecTestResult(TypedDict):
+    """Type definition for Kupiec test results."""
+
+    Model: str
+    RollingWindow: str
+    ConfidenceLevel: float
+    N: int
+    Violations: int
+    ExpectedViolations: float
+    ViolationRate: float
+    LR_uc: float
+    p_value: float
+    Reject_5pct: bool
 
 
 def run_kupiec_test(
@@ -19,7 +35,7 @@ def run_kupiec_test(
     confidence_level: float,
     model_name: str = "Unknown",
     window_label: str = "",
-) -> dict[str, float | int | bool | str]:
+) -> KupiecTestResult:
     """
     Run Kupiec unconditional coverage test on VaR forecasts.
 
